@@ -1,0 +1,24 @@
+[package]
+name = "msg_inspector"
+version = "0.1.0"
+edition = "2024"
+description = "A generic, modular Bevy UI framework for development panels and inspectors"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/MolecularSadism/msg_inspector"
+keywords = ["bevy", "inspector", "debug", "egui", "gamedev"]
+categories = ["game-development", "gui", "development-tools::debugging"]
+
+[dependencies]
+bevy = { version = "0.16", default-features = false, features = [
+    "bevy_core_pipeline",
+    "bevy_render",
+    "bevy_sprite",
+    "bevy_picking",
+    "bevy_window",
+    "bevy_winit",
+    "bevy_gizmos",
+    "bevy_pbr",
+] }
+bevy-inspector-egui = "0.33"
+bevy_egui = "0.36"
+egui_dock = "0.17"
