@@ -96,7 +96,10 @@ use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
 pub use panel::show_ui_system;
-pub use picking::{auto_add_pickable_to_sprites, handle_picking_clicks, update_picked_entity_marker};
+pub use picking::{
+    auto_add_pickable_to_sprites, handle_picking_clicks, update_picked_entity_marker,
+    CrosshairConfig,
+};
 pub use state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState};
 pub use tabs::{BuiltinTab, DockPosition, InspectorExt, InspectorTab, InspectorTabRegistry, Tab};
 pub use viewport::{egui_pointer_over_area, set_camera_viewport, InspectorMainCamera};
@@ -121,9 +124,11 @@ impl Plugin for InspectorPlugin {
         // State management
         app.register_type::<InspectorEnabled>()
             .register_type::<picking::PickedEntityMarker>()
+            .register_type::<picking::CrosshairConfig>()
             .init_resource::<InspectorEnabled>()
             .init_resource::<GameViewportRect>()
-            .init_resource::<InspectorTabRegistry>();
+            .init_resource::<InspectorTabRegistry>()
+            .init_resource::<picking::CrosshairConfig>();
 
         // Initialize UiState after tab registry so built-in tabs can be set up
         app.add_systems(Startup, state::initialize_ui_state);

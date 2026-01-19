@@ -14,7 +14,32 @@ pub struct PickedEntityMarker;
 const CROSSHAIR_SIZE: f32 = 20.0;
 
 /// Default crosshair color (green).
-const CROSSHAIR_COLOR: Color = Color::srgb(0.2, 0.8, 0.2);
+const DEFAULT_CROSSHAIR_COLOR: Color = Color::srgb(0.2, 0.8, 0.2);
+
+/// Configuration for the entity selection crosshair visual.
+///
+/// # Example
+///
+/// ```ignore
+/// // Change crosshair color to red
+/// app.insert_resource(CrosshairConfig {
+///     color: Color::srgb(1.0, 0.2, 0.2),
+/// });
+/// ```
+#[derive(Resource, Clone, Debug, Reflect)]
+#[reflect(Resource)]
+pub struct CrosshairConfig {
+    /// Color of the crosshair gizmo.
+    pub color: Color,
+}
+
+impl Default for CrosshairConfig {
+    fn default() -> Self {
+        Self {
+            color: DEFAULT_CROSSHAIR_COLOR,
+        }
+    }
+}
 
 /// Automatically adds `Pickable` component to newly spawned sprites.
 pub fn auto_add_pickable_to_sprites(
@@ -126,6 +151,7 @@ pub fn update_picked_entity_marker(
     mut commands: Commands,
     ui_state: Res<UiState>,
     enabled: Res<InspectorEnabled>,
+    crosshair_config: Res<CrosshairConfig>,
     q_marker: Query<Entity, With<PickedEntityMarker>>,
     q_transforms: Query<&GlobalTransform>,
     mut gizmos: Gizmos,
@@ -139,7 +165,7 @@ pub fn update_picked_entity_marker(
     }
 
     // Draw crosshair gizmos for each selected entity
-    let color = CROSSHAIR_COLOR;
+    let color = crosshair_config.color;
 
     for entity in ui_state.selected_entities.iter() {
         if let Ok(transform) = q_transforms.get(entity) {
