@@ -101,6 +101,9 @@ pub use state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState}
 pub use tabs::{BuiltinTab, DockPosition, InspectorExt, InspectorTab, InspectorTabRegistry, Tab};
 pub use viewport::{egui_pointer_over_area, set_camera_viewport, InspectorMainCamera};
 
+// Re-export egui so consumers don't need to depend on bevy-inspector-egui directly
+pub use bevy_inspector_egui::egui;
+
 /// Main plugin for the inspector framework.
 ///
 /// Provides a dockable panel UI with built-in tabs for entity inspection,
