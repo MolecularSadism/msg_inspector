@@ -1,8 +1,8 @@
 //! Camera viewport management for the inspector.
 
 use bevy::{
+    camera::Viewport,
     prelude::*,
-    render::camera::Viewport,
     window::{PrimaryWindow, Window},
 };
 use bevy_inspector_egui::bevy_egui::{EguiContextSettings, PrimaryEguiContext};

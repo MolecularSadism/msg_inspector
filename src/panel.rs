@@ -1,6 +1,6 @@
 //! Core panel management for the inspector UI.
 
-use bevy::{pbr::AmbientLight, pbr::DirectionalLight, prelude::*, render::view::RenderLayers};
+use bevy::{camera::visibility::RenderLayers, light::AmbientLight, light::DirectionalLight, prelude::*};
 use bevy_egui::EguiGlobalSettings;
 use bevy_inspector_egui::bevy_egui::{EguiContext, PrimaryEguiContext};
 
