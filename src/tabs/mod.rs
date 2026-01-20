@@ -17,6 +17,52 @@ use crate::state::InspectorSelection;
 ///
 /// Implement this trait to create custom tabs with full control over
 /// rendering and state management.
+///
+/// # Example
+///
+/// ```ignore
+/// use bevy::prelude::*;
+/// use msg_inspector::prelude::*;
+///
+/// /// A custom tab that displays player statistics.
+/// struct PlayerStatsTab {
+///     title: String,
+/// }
+///
+/// impl InspectorTab for PlayerStatsTab {
+///     fn id(&self) -> &'static str {
+///         "player_stats"
+///     }
+///
+///     fn title(&self) -> &str {
+///         &self.title
+///     }
+///
+///     fn ui(&mut self, ui: &mut egui::Ui, world: &mut World) {
+///         ui.heading("Player Statistics");
+///
+///         // Query world for player data
+///         let mut query = world.query::<&Transform>();
+///         ui.label(format!("Entities with Transform: {}", query.iter(world).count()));
+///     }
+///
+///     fn dock_position(&self) -> DockPosition {
+///         DockPosition::Right
+///     }
+///
+///     fn is_visible(&self, world: &World) -> bool {
+///         // Only show when there are entities in the world
+///         world.entities().len() > 0
+///     }
+/// }
+///
+/// // Register the custom tab
+/// fn setup_inspector(app: &mut App) {
+///     app.register_inspector_tab(PlayerStatsTab {
+///         title: "Player Stats".to_string(),
+///     });
+/// }
+/// ```
 pub trait InspectorTab: Send + Sync + 'static {
     /// Unique identifier for this tab.
     fn id(&self) -> &'static str;
@@ -87,6 +133,9 @@ pub trait InspectorExt {
     fn register_inspector_tab<T: InspectorTab>(&mut self, tab: T) -> &mut Self;
 
     /// Register a read-only analytics tab (no world mutation).
+    ///
+    /// The tab will be placed in the Bottom dock by default.
+    /// Use [`register_inspector_analytics_at`] to specify a custom dock position.
     fn register_inspector_analytics<F>(
         &mut self,
         id: &'static str,
@@ -96,11 +145,64 @@ pub trait InspectorExt {
     where
         F: Fn(&mut egui::Ui, &World) + Send + Sync + 'static;
 
+    /// Register a read-only analytics tab at a specific dock position.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// app.register_inspector_analytics_at(
+    ///     "stats",
+    ///     "Statistics",
+    ///     DockPosition::Right,
+    ///     |ui, world| {
+    ///         ui.label("Read-only stats here");
+    ///     },
+    /// );
+    /// ```
+    fn register_inspector_analytics_at<F>(
+        &mut self,
+        id: &'static str,
+        title: &'static str,
+        dock_position: DockPosition,
+        ui_fn: F,
+    ) -> &mut Self
+    where
+        F: Fn(&mut egui::Ui, &World) + Send + Sync + 'static;
+
     /// Register an interactive tab (can mutate world and trigger events).
+    ///
+    /// The tab will be placed in the Bottom dock by default.
+    /// Use [`register_inspector_interactive_at`] to specify a custom dock position.
     fn register_inspector_interactive<F>(
         &mut self,
         id: &'static str,
         title: &'static str,
+        ui_fn: F,
+    ) -> &mut Self
+    where
+        F: FnMut(&mut egui::Ui, &mut World) + Send + Sync + 'static;
+
+    /// Register an interactive tab at a specific dock position.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// app.register_inspector_interactive_at(
+    ///     "cheats",
+    ///     "Cheats",
+    ///     DockPosition::Left,
+    ///     |ui, world| {
+    ///         if ui.button("Heal Player").clicked() {
+    ///             // Mutate world state
+    ///         }
+    ///     },
+    /// );
+    /// ```
+    fn register_inspector_interactive_at<F>(
+        &mut self,
+        id: &'static str,
+        title: &'static str,
+        dock_position: DockPosition,
         ui_fn: F,
     ) -> &mut Self
     where
@@ -124,11 +226,24 @@ impl InspectorExt for App {
     where
         F: Fn(&mut egui::Ui, &World) + Send + Sync + 'static,
     {
+        self.register_inspector_analytics_at(id, title, DockPosition::Bottom, ui_fn)
+    }
+
+    fn register_inspector_analytics_at<F>(
+        &mut self,
+        id: &'static str,
+        title: &'static str,
+        dock_position: DockPosition,
+        ui_fn: F,
+    ) -> &mut Self
+    where
+        F: Fn(&mut egui::Ui, &World) + Send + Sync + 'static,
+    {
         self.register_inspector_tab(AnalyticsTab {
             id,
             title,
             ui_fn,
-            dock_position: DockPosition::Bottom,
+            dock_position,
         })
     }
 
@@ -141,11 +256,24 @@ impl InspectorExt for App {
     where
         F: FnMut(&mut egui::Ui, &mut World) + Send + Sync + 'static,
     {
+        self.register_inspector_interactive_at(id, title, DockPosition::Bottom, ui_fn)
+    }
+
+    fn register_inspector_interactive_at<F>(
+        &mut self,
+        id: &'static str,
+        title: &'static str,
+        dock_position: DockPosition,
+        ui_fn: F,
+    ) -> &mut Self
+    where
+        F: FnMut(&mut egui::Ui, &mut World) + Send + Sync + 'static,
+    {
         self.register_inspector_tab(InteractiveTab {
             id,
             title,
             ui_fn,
-            dock_position: DockPosition::Bottom,
+            dock_position,
         })
     }
 }
@@ -304,7 +432,20 @@ impl egui_dock::TabViewer for TabViewer<'_> {
             }
             Tab::Custom(index) => {
                 if let Some(tab) = self.custom_tabs.get_mut(*index) {
-                    tab.ui(ui, self.world);
+                    // Check visibility before rendering
+                    // Note: We reborrow world as shared reference for the visibility check
+                    let is_visible = {
+                        let world_ref: &World = self.world;
+                        tab.is_visible(world_ref)
+                    };
+
+                    if is_visible {
+                        tab.ui(ui, self.world);
+                    } else {
+                        ui.centered_and_justified(|ui| {
+                            ui.weak("Tab currently hidden");
+                        });
+                    }
                 } else {
                     ui.label(format!("Custom tab {} not found", index));
                 }
