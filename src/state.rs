@@ -25,7 +25,7 @@ impl Default for InspectorEnabled {
 /// Stores the game viewport rectangle in screen/egui coordinates.
 ///
 /// Used to determine if the mouse is over the game area vs egui panels.
-#[derive(Resource, Clone, Copy)]
+#[derive(Resource, Clone, Copy, Debug)]
 pub struct GameViewportRect {
     pub min_x: f32,
     pub min_y: f32,
@@ -52,7 +52,7 @@ impl GameViewportRect {
 }
 
 /// What is currently selected for inspection.
-#[derive(Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum InspectorSelection {
     /// One or more entities selected.
     Entities,

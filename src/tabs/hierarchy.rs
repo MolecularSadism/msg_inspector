@@ -2,6 +2,7 @@
 //!
 //! Provides a searchable tree view of all entities in the world.
 
+use bevy::ecs::world::EntityRef;
 use bevy::prelude::*;
 use bevy_egui::egui;
 use bevy_inspector_egui::bevy_inspector::hierarchy::{SelectedEntities, hierarchy_ui};
@@ -60,12 +61,13 @@ fn render_filtered_hierarchy(
         }
 
         // Also search by Entity ID (e.g., "123v4")
-        for entity in world.iter_entities() {
-            let entity_id = entity.id();
+        let mut q_all = world.query::<EntityRef>();
+        for entity_ref in q_all.iter(world) {
+            let entity_id = entity_ref.id();
             let id_str = format!("{}v{}", entity_id.index(), entity_id.generation());
             if id_str.contains(search_query) {
-                let name = world
-                    .get::<Name>(entity_id)
+                let name = entity_ref
+                    .get::<Name>()
                     .map(|n| n.to_string())
                     .unwrap_or_else(|| id_str.clone());
                 if !matching_entities.iter().any(|(e, _)| *e == entity_id) {

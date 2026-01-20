@@ -9,7 +9,7 @@ keywords = ["bevy", "inspector", "debug", "egui", "gamedev"]
 categories = ["game-development", "gui", "development-tools::debugging"]
 
 [dependencies]
-bevy = { version = "0.16", default-features = false, features = [
+bevy = { version = "0.17", default-features = false, features = [
     "bevy_core_pipeline",
     "bevy_render",
     "bevy_sprite",
@@ -19,6 +19,21 @@ bevy = { version = "0.16", default-features = false, features = [
     "bevy_gizmos",
     "bevy_pbr",
 ] }
-bevy-inspector-egui = "0.33"
-bevy_egui = "0.36"
+bevy-inspector-egui = "0.34"
+# bevy_egui 0.37 matches bevy-inspector-egui's egui 0.32 dependency
+bevy_egui = "0.37"
+# egui_dock 0.17 is compatible with egui 0.32
 egui_dock = "0.17"
+
+[dev-dependencies]
+bevy = { version = "0.17", default-features = false, features = [
+    "bevy_core_pipeline",
+    "bevy_render",
+    "bevy_sprite",
+    "bevy_picking",
+    "bevy_window",
+    "bevy_winit",
+    "bevy_gizmos",
+    "bevy_pbr",
+    "bevy_state",
+] }
