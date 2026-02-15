@@ -20,7 +20,10 @@ const DEFAULT_CROSSHAIR_COLOR: Color = Color::srgb(0.2, 0.8, 0.2);
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
+/// use bevy::prelude::*;
+/// use msg_inspector::prelude::*;
+/// let mut app = App::new();
 /// // Change crosshair color to red
 /// app.insert_resource(CrosshairConfig {
 ///     color: Color::srgb(1.0, 0.2, 0.2),

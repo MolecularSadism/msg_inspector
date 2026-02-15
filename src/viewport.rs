@@ -80,7 +80,13 @@ pub fn set_camera_viewport(
 /// If the cursor is outside the viewport (over egui panels), returns true (block game input).
 ///
 /// Use with `not(...)` to gate systems that should only run when clicking on the game viewport:
-/// ```ignore
+/// ```
+/// use bevy::prelude::*;
+/// use msg_inspector::prelude::*;
+///
+/// fn my_click_system() {}
+///
+/// let mut app = App::new();
 /// app.add_systems(Update, my_click_system.run_if(not(egui_pointer_over_area)));
 /// ```
 pub fn egui_pointer_over_area(

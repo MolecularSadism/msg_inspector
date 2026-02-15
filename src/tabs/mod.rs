@@ -20,18 +20,19 @@ use crate::state::InspectorSelection;
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// use bevy::prelude::*;
 /// use msg_inspector::prelude::*;
+/// use msg_inspector::egui;
 ///
-/// /// A custom tab that displays player statistics.
-/// struct PlayerStatsTab {
+/// /// A custom tab that displays entity statistics.
+/// struct EntityStatsTab {
 ///     title: String,
 /// }
 ///
-/// impl InspectorTab for PlayerStatsTab {
+/// impl InspectorTab for EntityStatsTab {
 ///     fn id(&self) -> &'static str {
-///         "player_stats"
+///         "entity_stats"
 ///     }
 ///
 ///     fn title(&self) -> &str {
@@ -39,9 +40,9 @@ use crate::state::InspectorSelection;
 ///     }
 ///
 ///     fn ui(&mut self, ui: &mut egui::Ui, world: &mut World) {
-///         ui.heading("Player Statistics");
+///         ui.heading("Entity Statistics");
 ///
-///         // Query world for player data
+///         // Query world for data
 ///         let mut query = world.query::<&Transform>();
 ///         ui.label(format!("Entities with Transform: {}", query.iter(world).count()));
 ///     }
@@ -51,17 +52,17 @@ use crate::state::InspectorSelection;
 ///     }
 ///
 ///     fn is_visible(&self, world: &World) -> bool {
-///         // Only show when there are entities in the world
 ///         world.entities().len() > 0
 ///     }
 /// }
 ///
 /// // Register the custom tab
 /// fn setup_inspector(app: &mut App) {
-///     app.register_inspector_tab(PlayerStatsTab {
-///         title: "Player Stats".to_string(),
+///     app.register_inspector_tab(EntityStatsTab {
+///         title: "Entity Stats".to_string(),
 ///     });
 /// }
+/// fn main() {}
 /// ```
 pub trait InspectorTab: Send + Sync + 'static {
     /// Unique identifier for this tab.
@@ -149,7 +150,12 @@ pub trait InspectorExt {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```
+    /// use bevy::prelude::*;
+    /// use msg_inspector::prelude::*;
+    ///
+    /// let mut app = App::new();
+    /// app.init_resource::<InspectorTabRegistry>();
     /// app.register_inspector_analytics_at(
     ///     "stats",
     ///     "Statistics",
@@ -186,7 +192,12 @@ pub trait InspectorExt {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```
+    /// use bevy::prelude::*;
+    /// use msg_inspector::prelude::*;
+    ///
+    /// let mut app = App::new();
+    /// app.init_resource::<InspectorTabRegistry>();
     /// app.register_inspector_interactive_at(
     ///     "cheats",
     ///     "Cheats",

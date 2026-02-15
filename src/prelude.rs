@@ -1,6 +1,6 @@
 //! Common re-exports for convenient usage.
 //!
-//! ```ignore
+//! ```
 //! use msg_inspector::prelude::*;
 //! ```
 //!

@@ -26,24 +26,27 @@
 //!
 //! ## Quick Start
 //!
-//! ```ignore
+//! ```no_run
+//! use bevy::prelude::*;
 //! use msg_inspector::prelude::*;
 //!
-//! // 1. Add the plugin
-//! app.add_plugins(InspectorPlugin);
+//! fn main() {
+//!     App::new()
+//!         .add_plugins(DefaultPlugins)
+//!         .add_plugins(InspectorPlugin)
+//!         .register_inspector_interactive("cheats", "Cheats", |ui, world| {
+//!             if ui.button("Heal Player").clicked() {
+//!                 // Mutate world state
+//!             }
+//!         })
+//!         .add_systems(Startup, setup)
+//!         .run();
+//! }
 //!
-//! // 2. Mark your main camera for viewport management
-//! commands.spawn((
-//!     Camera2d,
-//!     InspectorMainCamera,
-//! ));
-//!
-//! // 3. Register custom tabs from your game modules
-//! app.register_inspector_interactive("cheats", "Cheats", |ui, world| {
-//!     if ui.button("Heal Player").clicked() {
-//!         // Mutate world state
-//!     }
-//! });
+//! fn setup(mut commands: Commands) {
+//!     // Mark your main camera for viewport management
+//!     commands.spawn((Camera2d, InspectorMainCamera));
+//! }
 //! ```
 //!
 //! ## Registering Custom Tabs
@@ -52,11 +55,15 @@
 //!
 //! Use for displaying stats without modifying game state:
 //!
-//! ```ignore
-//! app.register_inspector_analytics("physics_stats", "Physics", |ui, world| {
-//!     if let Some(rapier) = world.get_resource::<RapierContext>() {
-//!         ui.label(format!("Bodies: {}", rapier.bodies.len()));
-//!     }
+//! ```
+//! use bevy::prelude::*;
+//! use msg_inspector::prelude::*;
+//!
+//! let mut app = App::new();
+//! app.init_resource::<InspectorTabRegistry>();
+//! app.register_inspector_analytics("stats", "Statistics", |ui, world| {
+//!     let count = world.entities().len();
+//!     ui.label(format!("Entities: {count}"));
 //! });
 //! ```
 //!
@@ -64,10 +71,15 @@
 //!
 //! Use when you need to trigger events or modify state:
 //!
-//! ```ignore
-//! app.register_inspector_interactive("spawner", "Actors", |ui, world| {
-//!     if ui.button("Spawn Enemy").clicked() {
-//!         world.commands().spawn(EnemyBundle::default());
+//! ```
+//! use bevy::prelude::*;
+//! use msg_inspector::prelude::*;
+//!
+//! let mut app = App::new();
+//! app.init_resource::<InspectorTabRegistry>();
+//! app.register_inspector_interactive("spawner", "Spawner", |ui, world| {
+//!     if ui.button("Spawn Entity").clicked() {
+//!         world.commands().spawn_empty();
 //!     }
 //! });
 //! ```
@@ -76,7 +88,13 @@
 //!
 //! Use [`egui_pointer_over_area`] to prevent game clicks when the cursor is over panels:
 //!
-//! ```ignore
+//! ```
+//! use bevy::prelude::*;
+//! use msg_inspector::prelude::*;
+//!
+//! fn my_click_system() {}
+//!
+//! let mut app = App::new();
 //! app.add_systems(Update, my_click_system.run_if(not(egui_pointer_over_area)));
 //! ```
 //!
@@ -97,12 +115,12 @@ use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
 pub use panel::show_ui_system;
 pub use picking::{
-    auto_add_pickable_to_sprites, handle_picking_clicks, update_picked_entity_marker,
-    CrosshairConfig,
+    CrosshairConfig, auto_add_pickable_to_sprites, handle_picking_clicks,
+    update_picked_entity_marker,
 };
 pub use state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState};
 pub use tabs::{BuiltinTab, DockPosition, InspectorExt, InspectorTab, InspectorTabRegistry, Tab};
-pub use viewport::{egui_pointer_over_area, set_camera_viewport, InspectorMainCamera};
+pub use viewport::{InspectorMainCamera, egui_pointer_over_area, set_camera_viewport};
 
 // Re-export egui so consumers don't need to depend on bevy-inspector-egui directly
 pub use bevy_inspector_egui::egui;
