@@ -47,7 +47,7 @@ pub fn auto_add_pickable_to_sprites(
     query: Query<Entity, (Added<Sprite>, Without<Pickable>)>,
 ) {
     for entity in &query {
-        commands.entity(entity).insert(Pickable::default());
+        commands.entity(entity).try_insert(Pickable::default());
     }
 }
 
@@ -93,9 +93,7 @@ pub fn handle_picking_clicks(
 
     // Find a camera to convert to world coordinates
     // Try to find a camera that's not the egui camera
-    let Some((camera, camera_transform)) = camera_query
-        .iter()
-        .find(|(cam, _)| cam.order >= 0)
+    let Some((camera, camera_transform)) = camera_query.iter().find(|(cam, _)| cam.order >= 0)
     else {
         return;
     };
