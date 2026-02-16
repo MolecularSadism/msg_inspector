@@ -114,10 +114,7 @@ use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
 pub use panel::show_ui_system;
-pub use picking::{
-    CrosshairConfig, auto_add_pickable_to_sprites, handle_picking_clicks,
-    update_picked_entity_marker,
-};
+pub use picking::{CrosshairConfig, handle_picking_clicks, update_picked_entity_marker};
 pub use state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState};
 pub use tabs::{BuiltinTab, DockPosition, InspectorExt, InspectorTab, InspectorTabRegistry, Tab};
 pub use viewport::{InspectorMainCamera, egui_pointer_over_area, set_camera_viewport};
@@ -160,8 +157,7 @@ impl Plugin for InspectorPlugin {
             .add_systems(PostUpdate, set_camera_viewport.after(show_ui_system))
             .add_systems(Update, panel::toggle_inspector)
             .add_systems(Update, handle_picking_clicks)
-            .add_systems(Update, update_picked_entity_marker)
-            .add_systems(Update, auto_add_pickable_to_sprites);
+            .add_systems(Update, update_picked_entity_marker);
 
         // Type registrations for reflection
         app.register_type::<Option<Handle<Image>>>()

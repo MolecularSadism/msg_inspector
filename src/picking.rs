@@ -44,16 +44,6 @@ impl Default for CrosshairConfig {
     }
 }
 
-/// Automatically adds `Pickable` component to newly spawned sprites.
-pub fn auto_add_pickable_to_sprites(
-    mut commands: Commands,
-    query: Query<Entity, (Added<Sprite>, Without<Pickable>)>,
-) {
-    for entity in &query {
-        commands.entity(entity).try_insert(Pickable::default());
-    }
-}
-
 /// Handles mouse clicks on entities to select them for inspection.
 ///
 /// Note: This system requires `MouseCoords` resource to be available from the game.
@@ -66,7 +56,7 @@ pub fn handle_picking_clicks(
     mouse_button: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
     mut q_egui_ctx: Query<&mut EguiContext, With<PrimaryEguiContext>>,
-    q_sprites: Query<(Entity, &GlobalTransform, &Sprite), With<Pickable>>,
+    q_sprites: Query<(Entity, &GlobalTransform, &Sprite)>,
     images: Res<Assets<Image>>,
     camera_query: Query<(&Camera, &GlobalTransform)>,
 ) {
