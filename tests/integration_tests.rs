@@ -1,4 +1,4 @@
-//! Integration tests for msg_inspector with Bevy 0.17.
+//! Integration tests for `msg_inspector` with Bevy 0.17.
 
 use bevy::prelude::*;
 use msg_inspector::prelude::*;
@@ -10,6 +10,7 @@ fn test_inspector_enabled_resource_defaults_to_true() {
 }
 
 #[test]
+#[allow(clippy::float_cmp)]
 fn test_game_viewport_rect_default_values() {
     let rect = GameViewportRect::default();
     assert_eq!(rect.min_x, 0.0);
@@ -111,6 +112,7 @@ fn _compile_test_custom_tab_registration() {
             "test"
         }
 
+        #[allow(clippy::unnecessary_literal_bound)]
         fn title(&self) -> &str {
             "Test Tab"
         }

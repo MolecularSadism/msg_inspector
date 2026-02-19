@@ -1,6 +1,6 @@
 [package]
 name = "msg_inspector"
-version = "0.2.2"
+version = "0.3.1"
 edition = "2024"
 description = "A generic, modular Bevy UI framework for development panels and inspectors"
 license = "MIT OR Apache-2.0"
@@ -9,7 +9,7 @@ keywords = ["bevy", "inspector", "debug", "egui", "gamedev"]
 categories = ["game-development", "gui", "development-tools::debugging"]
 
 [dependencies]
-bevy = { version = "0.17", default-features = false, features = [
+bevy = { version = "0.18", default-features = false, features = [
     "bevy_core_pipeline",
     "bevy_render",
     "bevy_sprite",
@@ -18,14 +18,12 @@ bevy = { version = "0.17", default-features = false, features = [
     "bevy_gizmos",
     "bevy_pbr",
 ] }
-bevy-inspector-egui = "0.35"
-# bevy_egui 0.38 matches bevy-inspector-egui's egui 0.33 dependency
-bevy_egui = "0.38"
-# egui_dock 0.18 is compatible with egui 0.33
+bevy-inspector-egui = "0.36"
+bevy_egui = { version = "0.39.1" }
 egui_dock = "0.18"
 
 [dev-dependencies]
-bevy = { version = "0.17", default-features = false, features = [
+bevy = { version = "0.18", default-features = false, features = [
     "bevy_core_pipeline",
     "bevy_render",
     "bevy_sprite",

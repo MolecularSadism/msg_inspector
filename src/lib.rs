@@ -1,4 +1,4 @@
-//! # msg_inspector
+//! # `msg_inspector`
 //!
 //! A generic, modular Bevy UI framework for development panels and inspectors.
 //!
@@ -8,7 +8,7 @@
 //!
 //! ## Features
 //!
-//! - **Built-in tabs**: GameView, Hierarchy, Inspector, Resources, Assets, Diagnostics
+//! - **Built-in tabs**: `GameView`, Hierarchy, Inspector, Resources, Assets, Diagnostics
 //! - **Entity picking**: Click entities in the viewport to select them
 //! - **Viewport management**: Automatic camera viewport clipping to dock area
 //! - **Tab registration**: Games can register custom tabs via [`InspectorExt`] trait
@@ -26,26 +26,23 @@
 //!
 //! ## Quick Start
 //!
-//! ```no_run
+//! ```
 //! use bevy::prelude::*;
 //! use msg_inspector::prelude::*;
-//!
-//! fn main() {
-//!     App::new()
-//!         .add_plugins(DefaultPlugins)
-//!         .add_plugins(InspectorPlugin)
-//!         .register_inspector_interactive("cheats", "Cheats", |ui, world| {
-//!             if ui.button("Heal Player").clicked() {
-//!                 // Mutate world state
-//!             }
-//!         })
-//!         .add_systems(Startup, setup)
-//!         .run();
-//! }
 //!
 //! fn setup(mut commands: Commands) {
 //!     // Mark your main camera for viewport management
 //!     commands.spawn((Camera2d, InspectorMainCamera));
+//! }
+//! 
+//! fn plugin(app: &mut App) {
+//!     app.add_plugins((DefaultPlugins, InspectorPlugin));
+//!     app.register_inspector_interactive("cheats", "Cheats", |ui, world| {
+//!         if ui.button("Heal Player").clicked() {
+//!             // Mutate world state
+//!         }
+//!     })
+//!     .add_systems(Startup, setup);
 //! }
 //! ```
 //!
@@ -59,12 +56,13 @@
 //! use bevy::prelude::*;
 //! use msg_inspector::prelude::*;
 //!
-//! let mut app = App::new();
-//! app.init_resource::<InspectorTabRegistry>();
-//! app.register_inspector_analytics("stats", "Statistics", |ui, world| {
-//!     let count = world.entities().len();
-//!     ui.label(format!("Entities: {count}"));
-//! });
+//! fn plugin(app: &mut App) {
+//!     app.add_plugins(InspectorPlugin);
+//!     app.register_inspector_analytics("stats", "Statistics", |ui, world| {
+//!         let count = world.entities().len();
+//!         ui.label(format!("Entities: {count}"));
+//!     });
+//! }
 //! ```
 //!
 //! ### Interactive Tab (Mutable)
@@ -75,13 +73,14 @@
 //! use bevy::prelude::*;
 //! use msg_inspector::prelude::*;
 //!
-//! let mut app = App::new();
-//! app.init_resource::<InspectorTabRegistry>();
-//! app.register_inspector_interactive("spawner", "Spawner", |ui, world| {
-//!     if ui.button("Spawn Entity").clicked() {
-//!         world.commands().spawn_empty();
-//!     }
-//! });
+//! fn plugin(app: &mut App) {
+//!     app.add_plugins(InspectorPlugin);
+//!     app.register_inspector_interactive("spawner", "Spawner", |ui, world| {
+//!         if ui.button("Spawn Entity").clicked() {
+//!             world.commands().spawn_empty();
+//!         }
+//!     });
+//! }
 //! ```
 //!
 //! ## Blocking Game Input Over Panels

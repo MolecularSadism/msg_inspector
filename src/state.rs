@@ -46,6 +46,7 @@ impl Default for GameViewportRect {
 
 impl GameViewportRect {
     /// Check if a point (x, y) is inside this rectangle.
+    #[must_use]
     pub fn contains(&self, x: f32, y: f32) -> bool {
         x >= self.min_x && x <= self.max_x && y >= self.min_y && y <= self.max_y
     }
@@ -80,7 +81,8 @@ pub struct UiState {
 }
 
 impl UiState {
-    /// Create a new UiState with default dock layout.
+    /// Create a new `UiState` with default dock layout.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             state: DockState::new(vec![Tab::Builtin(BuiltinTab::GameView)]),
@@ -158,7 +160,7 @@ impl Default for UiState {
     }
 }
 
-/// System to initialize UiState after InspectorTabRegistry is populated.
+/// System to initialize `UiState` after `InspectorTabRegistry` is populated.
 pub fn initialize_ui_state(mut commands: Commands, mut registry: ResMut<InspectorTabRegistry>) {
     // Take ownership of the custom tabs from the registry
     let custom_tabs: Vec<Box<dyn InspectorTab>> = std::mem::take(&mut registry.tabs);

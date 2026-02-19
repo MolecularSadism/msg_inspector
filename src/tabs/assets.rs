@@ -2,8 +2,8 @@
 //!
 //! Lists all loaded assets by type and allows selecting them for inspection.
 
-use bevy::{asset::ReflectAsset, prelude::*};
 use bevy::reflect::TypeRegistry;
+use bevy::{asset::ReflectAsset, prelude::*};
 use bevy_egui::egui;
 
 use crate::state::InspectorSelection;

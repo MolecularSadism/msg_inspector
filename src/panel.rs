@@ -1,8 +1,8 @@
 //! Core panel management for the inspector UI.
 
-use bevy::{camera::visibility::RenderLayers, light::AmbientLight, light::DirectionalLight, prelude::*};
+use bevy::{camera::visibility::RenderLayers, prelude::*};
 use bevy_egui::EguiGlobalSettings;
-use bevy_inspector_egui::bevy_egui::{EguiContext, PrimaryEguiContext};
+use bevy_egui::{EguiContext, PrimaryEguiContext};
 
 use crate::state::{GameViewportRect, InspectorEnabled, UiState};
 
@@ -45,27 +45,8 @@ pub fn toggle_inspector(keys: Res<ButtonInput<KeyCode>>, mut enabled: ResMut<Ins
 }
 
 /// Startup system to configure egui and spawn required entities.
-pub fn setup(
-    mut commands: Commands,
-    mut egui_global_settings: ResMut<EguiGlobalSettings>,
-) {
+pub fn setup(mut commands: Commands, mut egui_global_settings: ResMut<EguiGlobalSettings>) {
     egui_global_settings.auto_create_primary_context = false;
-
-    // Ambient light for 3D scenes (optional, games can override)
-    commands.insert_resource(AmbientLight {
-        color: Color::WHITE,
-        brightness: 0.02,
-        ..default()
-    });
-
-    // Directional light
-    commands.spawn((
-        DirectionalLight {
-            illuminance: 2000.0,
-            ..default()
-        },
-        Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::PI / 2.0)),
-    ));
 
     // Egui camera (separate from game camera)
     commands.spawn((

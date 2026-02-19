@@ -108,6 +108,7 @@ impl InspectorTabRegistry {
     }
 
     /// Get all registered tabs.
+    #[must_use]
     pub fn tabs(&self) -> &[Box<dyn InspectorTab>] {
         &self.tabs
     }
@@ -118,11 +119,13 @@ impl InspectorTabRegistry {
     }
 
     /// Number of registered custom tabs.
+    #[must_use]
     pub fn len(&self) -> usize {
         self.tabs.len()
     }
 
     /// Whether there are any registered custom tabs.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.tabs.is_empty()
     }
@@ -130,13 +133,13 @@ impl InspectorTabRegistry {
 
 /// Extension trait for App to register inspector tabs.
 pub trait InspectorExt {
-    /// Register a custom tab with full InspectorTab implementation.
+    /// Register a custom tab with full `InspectorTab` implementation.
     fn register_inspector_tab<T: InspectorTab>(&mut self, tab: T) -> &mut Self;
 
     /// Register a read-only analytics tab (no world mutation).
     ///
     /// The tab will be placed in the Bottom dock by default.
-    /// Use [`register_inspector_analytics_at`] to specify a custom dock position.
+    /// Use [`Self::register_inspector_analytics_at`] to specify a custom dock position.
     fn register_inspector_analytics<F>(
         &mut self,
         id: &'static str,
@@ -154,16 +157,17 @@ pub trait InspectorExt {
     /// use bevy::prelude::*;
     /// use msg_inspector::prelude::*;
     ///
-    /// let mut app = App::new();
-    /// app.init_resource::<InspectorTabRegistry>();
-    /// app.register_inspector_analytics_at(
-    ///     "stats",
-    ///     "Statistics",
-    ///     DockPosition::Right,
-    ///     |ui, world| {
-    ///         ui.label("Read-only stats here");
-    ///     },
-    /// );
+    /// fn plugin(app: &mut App) {
+    ///     app.add_plugins(InspectorPlugin);
+    ///     app.register_inspector_analytics_at(
+    ///         "stats",
+    ///         "Statistics",
+    ///         DockPosition::Right,
+    ///         |ui, world| {
+    ///             ui.label("Read-only stats here");
+    ///         },
+    ///     );
+    /// }
     /// ```
     fn register_inspector_analytics_at<F>(
         &mut self,
@@ -178,7 +182,7 @@ pub trait InspectorExt {
     /// Register an interactive tab (can mutate world and trigger events).
     ///
     /// The tab will be placed in the Bottom dock by default.
-    /// Use [`register_inspector_interactive_at`] to specify a custom dock position.
+    /// Use [`Self::register_inspector_interactive_at`] to specify a custom dock position.
     fn register_inspector_interactive<F>(
         &mut self,
         id: &'static str,
@@ -196,18 +200,19 @@ pub trait InspectorExt {
     /// use bevy::prelude::*;
     /// use msg_inspector::prelude::*;
     ///
-    /// let mut app = App::new();
-    /// app.init_resource::<InspectorTabRegistry>();
-    /// app.register_inspector_interactive_at(
-    ///     "cheats",
-    ///     "Cheats",
-    ///     DockPosition::Left,
-    ///     |ui, world| {
-    ///         if ui.button("Heal Player").clicked() {
-    ///             // Mutate world state
-    ///         }
-    ///     },
-    /// );
+    /// fn plugin(app: &mut App) {
+    ///     app.add_plugins(InspectorPlugin);
+    ///     app.register_inspector_interactive_at(
+    ///         "cheats",
+    ///         "Cheats",
+    ///         DockPosition::Left,
+    ///         |ui, world| {
+    ///             if ui.button("Heal Player").clicked() {
+    ///                 // Mutate world state
+    ///             }
+    ///         },
+    ///     );
+    /// }
     /// ```
     fn register_inspector_interactive_at<F>(
         &mut self,
@@ -385,7 +390,7 @@ pub enum BuiltinTab {
     Diagnostics,
 }
 
-/// Tab viewer for egui_dock that handles both built-in and custom tabs.
+/// Tab viewer for `egui_dock` that handles both built-in and custom tabs.
 pub struct TabViewer<'a> {
     pub world: &'a mut World,
     pub selected_entities: &'a mut SelectedEntities,
@@ -458,7 +463,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
                         });
                     }
                 } else {
-                    ui.label(format!("Custom tab {} not found", index));
+                    ui.label(format!("Custom tab {index} not found"));
                 }
             }
         }
@@ -478,7 +483,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
                 if let Some(tab) = self.custom_tabs.get(*index) {
                     tab.title().into()
                 } else {
-                    format!("Tab {}", index).into()
+                    format!("Tab {index}").into()
                 }
             }
         }

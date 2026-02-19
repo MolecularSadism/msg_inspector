@@ -9,11 +9,7 @@ use bevy_egui::egui;
 use crate::state::InspectorSelection;
 
 /// Render the resources tab.
-pub fn render(
-    ui: &mut egui::Ui,
-    type_registry: &TypeRegistry,
-    selection: &mut InspectorSelection,
-) {
+pub fn render(ui: &mut egui::Ui, type_registry: &TypeRegistry, selection: &mut InspectorSelection) {
     let mut resources: Vec<_> = type_registry
         .iter()
         .filter(|registration| registration.data::<ReflectResource>().is_some())

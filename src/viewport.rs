@@ -5,7 +5,7 @@ use bevy::{
     prelude::*,
     window::{PrimaryWindow, Window},
 };
-use bevy_inspector_egui::bevy_egui::{EguiContextSettings, PrimaryEguiContext};
+use bevy_egui::{EguiContextSettings, PrimaryEguiContext};
 
 use crate::state::{GameViewportRect, InspectorEnabled, UiState};
 
@@ -15,7 +15,10 @@ use crate::state::{GameViewportRect, InspectorEnabled, UiState};
 #[derive(Component)]
 pub struct InspectorMainCamera;
 
+const MIN_WINDOW_SIZE: u32 = 16;
+
 /// System that adjusts the camera viewport to not overlap with egui panels.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn set_camera_viewport(
     ui_state: Res<UiState>,
     enabled: Res<InspectorEnabled>,
@@ -23,7 +26,7 @@ pub fn set_camera_viewport(
     mut cameras: Query<&mut Camera, (With<InspectorMainCamera>, Without<PrimaryEguiContext>)>,
     mut egui_settings: Single<&mut EguiContextSettings>,
 ) {
-    egui_settings.capture_pointer_input = false;
+    egui_settings.capture_pointer_input = true;
 
     let scale_factor = window.scale_factor() * egui_settings.scale_factor;
 
@@ -50,7 +53,6 @@ pub fn set_camera_viewport(
     // wgpu will panic if trying to set a viewport rect which has coordinates extending
     // past the size of the render target, i.e. the physical window in our case.
     // Also prevent rendering when the window is minimized (size becomes very small).
-    const MIN_WINDOW_SIZE: u32 = 16;
     if rect.x <= window_size.x
         && rect.y <= window_size.y
         && window_size.x >= MIN_WINDOW_SIZE
@@ -89,6 +91,7 @@ pub fn set_camera_viewport(
 /// let mut app = App::new();
 /// app.add_systems(Update, my_click_system.run_if(not(egui_pointer_over_area)));
 /// ```
+#[must_use]
 pub fn egui_pointer_over_area(
     viewport_rect: Res<GameViewportRect>,
     window: Single<&Window, With<PrimaryWindow>>,

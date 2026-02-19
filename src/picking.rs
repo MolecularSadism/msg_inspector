@@ -1,7 +1,7 @@
 //! Entity picking systems for selecting entities in the viewport.
 
 use bevy::{gizmos::gizmos::Gizmos, prelude::*, window::Window};
-use bevy_inspector_egui::bevy_egui::{EguiContext, PrimaryEguiContext};
+use bevy_egui::{EguiContext, PrimaryEguiContext};
 
 use crate::state::{InspectorEnabled, InspectorSelection, UiState};
 
@@ -106,8 +106,7 @@ pub fn handle_picking_clicks(
         let sprite_size = sprite.custom_size.unwrap_or_else(|| {
             images
                 .get(&sprite.image)
-                .map(|img| img.size().as_vec2())
-                .unwrap_or(Vec2::splat(32.0))
+                .map_or(Vec2::splat(32.0), |img| img.size().as_vec2())
         });
 
         let half_size = sprite_size / 2.0;

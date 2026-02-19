@@ -13,9 +13,9 @@
 //! - [`egui_pointer_over_area`] - Run condition for blocking game input over panels
 
 pub use crate::{
+    InspectorPlugin,
     picking::CrosshairConfig,
     state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState},
     tabs::{BuiltinTab, DockPosition, InspectorExt, InspectorTab, InspectorTabRegistry, Tab},
     viewport::{InspectorMainCamera, egui_pointer_over_area},
-    InspectorPlugin,
 };

@@ -68,8 +68,7 @@ fn render_filtered_hierarchy(
             if id_str.contains(search_query) {
                 let name = entity_ref
                     .get::<Name>()
-                    .map(|n| n.to_string())
-                    .unwrap_or_else(|| id_str.clone());
+                    .map_or_else(|| id_str.clone(), std::string::ToString::to_string);
                 if !matching_entities.iter().any(|(e, _)| *e == entity_id) {
                     matching_entities.push((entity_id, name));
                 }
@@ -85,7 +84,7 @@ fn render_filtered_hierarchy(
 
         for (entity, display_name) in matching_entities {
             let is_selected = selected_entities.contains(entity);
-            let label = format!("{} ({:?})", display_name, entity);
+            let label = format!("{display_name} ({entity:?})");
 
             if ui.selectable_label(is_selected, label).clicked() {
                 let modifiers = ui.input(|i| i.modifiers);

@@ -1,5 +1,11 @@
 # msg_inspector
 
+[![CI](https://github.com/MolecularSadism/msg_inspector/workflows/CI/badge.svg)](https://github.com/MolecularSadism/msg_inspector/actions)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](https://github.com/MolecularSadism/msg_inspector#license)
+[![Bevy](https://img.shields.io/badge/Bevy-0.18-blue.svg)](https://bevyengine.org/)
+[![Rust](https://img.shields.io/badge/rust-2024%20edition-orange.svg)](https://www.rust-lang.org/)
+
+
 A generic, modular Bevy UI framework for development panels and inspectors.
 
 This crate provides a registration-based API where game modules can locally declare dev features, supporting pluggable analytics (read-only) and interactive (mutable) tabs.
@@ -17,8 +23,8 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-msg_inspector = { git = "https://github.com/MolecularSadism/msg_inspector", tag = "v0.2.0" }
-bevy = "0.17"
+msg_inspector = { git = "https://github.com/MolecularSadism/msg_inspector", tag = "v0.3.0" }
+bevy = "0.18"
 ```
 
 ## Built-in Tabs
@@ -97,6 +103,7 @@ Press the **Delete** key to toggle the inspector panel visibility.
 
 | `msg_inspector` | Bevy |
 |-----------------|------|
+| 0.3             | 0.18 |
 | 0.2             | 0.17 |
 | 0.1             | 0.16 |
 
