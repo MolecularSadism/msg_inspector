@@ -160,7 +160,7 @@ pub trait InspectorExt {
     /// use msg_inspector::prelude::*;
     ///
     /// fn plugin(app: &mut App) {
-    ///     app.add_plugins(InspectorPlugin);
+    ///     app.add_plugins(InspectorPlugin::default());
     ///     app.register_inspector_analytics_at(
     ///         "stats",
     ///         "Statistics",
@@ -203,7 +203,7 @@ pub trait InspectorExt {
     /// use msg_inspector::prelude::*;
     ///
     /// fn plugin(app: &mut App) {
-    ///     app.add_plugins(InspectorPlugin);
+    ///     app.add_plugins(InspectorPlugin::default());
     ///     app.register_inspector_interactive_at(
     ///         "cheats",
     ///         "Cheats",
@@ -226,49 +226,6 @@ pub trait InspectorExt {
     where
         F: FnMut(&mut egui::Ui, &mut World) + Send + Sync + 'static;
 
-    /// Register a component counter in the diagnostics tab.
-    ///
-    /// The counter displays the number of entities that have component `C`.
-    /// The label is derived from the type name automatically.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use bevy::prelude::*;
-    /// use msg_inspector::prelude::*;
-    ///
-    /// #[derive(Component)]
-    /// struct Collider;
-    ///
-    /// #[derive(Component)]
-    /// struct RigidBody;
-    ///
-    /// fn plugin(app: &mut App) {
-    ///     app.add_plugins(InspectorPlugin)
-    ///         .with_counter::<Collider>()
-    ///         .with_counter::<RigidBody>();
-    /// }
-    /// ```
-    fn with_counter<C: Component>(&mut self) -> &mut Self;
-
-    /// Register a custom counter with a label and count function in the diagnostics tab.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use bevy::prelude::*;
-    /// use msg_inspector::prelude::*;
-    ///
-    /// fn plugin(app: &mut App) {
-    ///     app.add_plugins(InspectorPlugin)
-    ///         .with_custom_counter("Visible", |world| {
-    ///             world.entities().len() as usize
-    ///         });
-    /// }
-    /// ```
-    fn with_custom_counter<F>(&mut self, label: &str, count_fn: F) -> &mut Self
-    where
-        F: Fn(&World) -> usize + Send + Sync + 'static;
 }
 
 impl InspectorExt for App {
@@ -339,22 +296,6 @@ impl InspectorExt for App {
         })
     }
 
-    fn with_counter<C: Component>(&mut self) -> &mut Self {
-        self.world_mut()
-            .resource_mut::<DiagnosticsCounters>()
-            .add_component_counter::<C>();
-        self
-    }
-
-    fn with_custom_counter<F>(&mut self, label: &str, count_fn: F) -> &mut Self
-    where
-        F: Fn(&World) -> usize + Send + Sync + 'static,
-    {
-        self.world_mut()
-            .resource_mut::<DiagnosticsCounters>()
-            .add_custom(label, count_fn);
-        self
-    }
 }
 
 /// Wrapper for read-only analytics tabs using closures.

@@ -11,13 +11,13 @@ struct CounterEntry {
     count_fn: Box<dyn Fn(&World) -> usize + Send + Sync>,
 }
 
-/// Resource holding user-registered counters for the diagnostics tab.
+/// Holds user-registered counters for the diagnostics tab.
 ///
-/// Use [`InspectorExt::with_counter`] or [`InspectorExt::with_custom_counter`]
+/// Use [`InspectorPlugin::with_counter`] or [`InspectorPlugin::with_custom_counter`]
 /// to register counters.
 ///
-/// [`InspectorExt::with_counter`]: crate::tabs::InspectorExt::with_counter
-/// [`InspectorExt::with_custom_counter`]: crate::tabs::InspectorExt::with_custom_counter
+/// [`InspectorPlugin::with_counter`]: crate::InspectorPlugin::with_counter
+/// [`InspectorPlugin::with_custom_counter`]: crate::InspectorPlugin::with_custom_counter
 #[derive(Resource, Default)]
 pub struct DiagnosticsCounters {
     counters: Vec<CounterEntry>,

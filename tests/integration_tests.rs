@@ -160,9 +160,11 @@ fn _compile_test_with_counter() {
     struct RigidBody;
 
     fn plugin(app: &mut App) {
-        app.add_plugins(InspectorPlugin)
-            .with_counter::<Collider>()
-            .with_counter::<RigidBody>()
-            .with_custom_counter("Custom", |world| world.entities().len() as usize);
+        app.add_plugins(
+            InspectorPlugin::default()
+                .with_counter::<Collider>()
+                .with_counter::<RigidBody>()
+                .with_custom_counter("Custom", |world| world.entities().len() as usize),
+        );
     }
 }
