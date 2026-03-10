@@ -101,6 +101,21 @@ fn test_tab_registry_operations() {
     assert!(registry.tabs().is_empty());
 }
 
+#[test]
+fn test_diagnostics_counters_default_empty() {
+    let counters = DiagnosticsCounters::default();
+    // The struct is opaque but should be constructible
+    // (internal tests cover the counter logic)
+    drop(counters);
+}
+
+#[test]
+fn test_diagnostics_counters_add_custom() {
+    let mut counters = DiagnosticsCounters::default();
+    counters.add_custom("Test Counter", |_| 42);
+    // Just verify it doesn't panic — the internal vec is private
+}
+
 /// Test that demonstrates the custom tab registration API compiles correctly.
 /// This is a compile-time verification test.
 #[allow(dead_code)]
@@ -133,4 +148,23 @@ fn _compile_test_custom_tab_registration() {
     // This verifies the API surface is correct at compile time
     let mut registry = InspectorTabRegistry::default();
     registry.register(TestTab);
+}
+
+/// Compile-time verification that with_counter API works.
+#[allow(dead_code)]
+fn _compile_test_with_counter() {
+    #[derive(Component)]
+    struct Collider;
+
+    #[derive(Component)]
+    struct RigidBody;
+
+    fn plugin(app: &mut App) {
+        app.add_plugins(
+            InspectorPlugin::default()
+                .with_counter::<Collider>()
+                .with_counter::<RigidBody>()
+                .with_custom_counter("Custom", |world| world.entities().len() as usize),
+        );
+    }
 }

@@ -12,6 +12,7 @@
 //! - **Entity picking**: Click entities in the viewport to select them
 //! - **Viewport management**: Automatic camera viewport clipping to dock area
 //! - **Tab registration**: Games can register custom tabs via [`InspectorExt`] trait
+//! - **Custom counters**: Track component counts in the Diagnostics tab via [`InspectorPlugin::with_counter`]
 //!
 //! ## Built-in Tabs
 //!
@@ -36,7 +37,7 @@
 //! }
 //! 
 //! fn plugin(app: &mut App) {
-//!     app.add_plugins((DefaultPlugins, InspectorPlugin));
+//!     app.add_plugins((DefaultPlugins, InspectorPlugin::default()));
 //!     app.register_inspector_interactive("cheats", "Cheats", |ui, world| {
 //!         if ui.button("Heal Player").clicked() {
 //!             // Mutate world state
@@ -57,7 +58,7 @@
 //! use msg_inspector::prelude::*;
 //!
 //! fn plugin(app: &mut App) {
-//!     app.add_plugins(InspectorPlugin);
+//!     app.add_plugins(InspectorPlugin::default());
 //!     app.register_inspector_analytics("stats", "Statistics", |ui, world| {
 //!         let count = world.entities().len();
 //!         ui.label(format!("Entities: {count}"));
@@ -74,7 +75,7 @@
 //! use msg_inspector::prelude::*;
 //!
 //! fn plugin(app: &mut App) {
-//!     app.add_plugins(InspectorPlugin);
+//!     app.add_plugins(InspectorPlugin::default());
 //!     app.register_inspector_interactive("spawner", "Spawner", |ui, world| {
 //!         if ui.button("Spawn Entity").clicked() {
 //!             world.commands().spawn_empty();
@@ -108,6 +109,8 @@ mod state;
 pub mod tabs;
 mod viewport;
 
+use std::sync::Mutex;
+
 use bevy::{prelude::*, render::alpha::AlphaMode};
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
@@ -115,7 +118,10 @@ use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 pub use panel::show_ui_system;
 pub use picking::{CrosshairConfig, handle_picking_clicks, update_picked_entity_marker};
 pub use state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState};
-pub use tabs::{BuiltinTab, DockPosition, InspectorExt, InspectorTab, InspectorTabRegistry, Tab};
+pub use tabs::{
+    BuiltinTab, DiagnosticsCounters, DockPosition, InspectorExt, InspectorTab,
+    InspectorTabRegistry, Tab,
+};
 pub use viewport::{InspectorMainCamera, egui_pointer_over_area, set_camera_viewport};
 
 // Re-export egui so consumers don't need to depend on bevy-inspector-egui directly
@@ -127,7 +133,98 @@ pub use bevy_inspector_egui::egui;
 /// hierarchy browsing, resource/asset exploration, and performance diagnostics.
 ///
 /// Toggle visibility with the Delete key.
-pub struct InspectorPlugin;
+///
+/// # Custom Counters
+///
+/// Use [`with_counter`](Self::with_counter) and
+/// [`with_custom_counter`](Self::with_custom_counter) to register component
+/// counters displayed in the Diagnostics tab:
+///
+/// ```
+/// use bevy::prelude::*;
+/// use msg_inspector::prelude::*;
+///
+/// #[derive(Component)]
+/// struct Collider;
+///
+/// #[derive(Component)]
+/// struct RigidBody;
+///
+/// fn plugin(app: &mut App) {
+///     app.add_plugins(
+///         InspectorPlugin::default()
+///             .with_counter::<Collider>()
+///             .with_counter::<RigidBody>()
+///     );
+/// }
+/// ```
+pub struct InspectorPlugin {
+    counters: Mutex<tabs::DiagnosticsCounters>,
+}
+
+impl Default for InspectorPlugin {
+    fn default() -> Self {
+        Self {
+            counters: Mutex::new(tabs::DiagnosticsCounters::default()),
+        }
+    }
+}
+
+impl InspectorPlugin {
+    /// Register a component counter in the diagnostics tab.
+    ///
+    /// The counter displays the number of entities that have component `C`.
+    /// The label is derived from the type name automatically.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// use msg_inspector::prelude::*;
+    ///
+    /// #[derive(Component)]
+    /// struct Collider;
+    ///
+    /// fn plugin(app: &mut App) {
+    ///     app.add_plugins(
+    ///         InspectorPlugin::default()
+    ///             .with_counter::<Collider>()
+    ///     );
+    /// }
+    /// ```
+    #[must_use]
+    pub fn with_counter<C: Component>(self) -> Self {
+        self.counters.lock().unwrap().add_component_counter::<C>();
+        self
+    }
+
+    /// Register a custom counter with a label and count function in the diagnostics tab.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// use msg_inspector::prelude::*;
+    ///
+    /// fn plugin(app: &mut App) {
+    ///     app.add_plugins(
+    ///         InspectorPlugin::default()
+    ///             .with_custom_counter("Visible", |world| {
+    ///                 world.entities().len() as usize
+    ///             })
+    ///     );
+    /// }
+    /// ```
+    #[must_use]
+    pub fn with_custom_counter(
+        self,
+        label: &str,
+        count_fn: impl Fn(&World) -> usize + Send + Sync + 'static,
+    ) -> Self {
+        self.counters.lock().unwrap().add_custom(label, count_fn);
+        self
+    }
+}
 
 impl Plugin for InspectorPlugin {
     fn build(&self, app: &mut App) {
@@ -161,5 +258,12 @@ impl Plugin for InspectorPlugin {
         // Type registrations for reflection
         app.register_type::<Option<Handle<Image>>>()
             .register_type::<AlphaMode>();
+    }
+
+    fn finish(&self, app: &mut App) {
+        // Insert counters collected during plugin configuration.
+        // Done in finish() so it runs after build(), avoiding resource ordering issues.
+        let counters = std::mem::take(&mut *self.counters.lock().unwrap());
+        app.insert_resource(counters);
     }
 }

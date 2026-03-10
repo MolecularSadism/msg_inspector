@@ -7,6 +7,8 @@ mod hierarchy;
 mod inspector;
 mod resources;
 
+pub use diagnostics::DiagnosticsCounters;
+
 use bevy::prelude::*;
 use bevy_egui::egui;
 use bevy_inspector_egui::bevy_inspector::hierarchy::SelectedEntities;
@@ -158,7 +160,7 @@ pub trait InspectorExt {
     /// use msg_inspector::prelude::*;
     ///
     /// fn plugin(app: &mut App) {
-    ///     app.add_plugins(InspectorPlugin);
+    ///     app.add_plugins(InspectorPlugin::default());
     ///     app.register_inspector_analytics_at(
     ///         "stats",
     ///         "Statistics",
@@ -201,7 +203,7 @@ pub trait InspectorExt {
     /// use msg_inspector::prelude::*;
     ///
     /// fn plugin(app: &mut App) {
-    ///     app.add_plugins(InspectorPlugin);
+    ///     app.add_plugins(InspectorPlugin::default());
     ///     app.register_inspector_interactive_at(
     ///         "cheats",
     ///         "Cheats",
@@ -223,6 +225,7 @@ pub trait InspectorExt {
     ) -> &mut Self
     where
         F: FnMut(&mut egui::Ui, &mut World) + Send + Sync + 'static;
+
 }
 
 impl InspectorExt for App {
@@ -292,6 +295,7 @@ impl InspectorExt for App {
             dock_position,
         })
     }
+
 }
 
 /// Wrapper for read-only analytics tabs using closures.

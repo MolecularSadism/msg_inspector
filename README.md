@@ -47,7 +47,7 @@ use msg_inspector::prelude::*;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_plugins(InspectorPlugin)
+        .add_plugins(InspectorPlugin::default())
         .add_systems(Startup, setup)
         .run();
 }
@@ -85,6 +85,36 @@ app.register_inspector_interactive("spawner", "Actors", |ui, world| {
         world.commands().spawn(EnemyBundle::default());
     }
 });
+```
+
+## Custom Diagnostics Counters
+
+Register component counters to track how many entities have a given component, displayed in the Diagnostics tab:
+
+```rust
+#[derive(Component)]
+struct Collider;
+
+#[derive(Component)]
+struct RigidBody;
+
+app.add_plugins(
+    InspectorPlugin::default()
+        .with_counter::<Collider>()
+        .with_counter::<RigidBody>()
+);
+```
+
+You can also register arbitrary counters with a custom label and count function:
+
+```rust
+app.add_plugins(
+    InspectorPlugin::default()
+        .with_custom_counter("Visible Meshes", |world| {
+            // any logic that returns a usize
+            world.entities().len() as usize
+        })
+);
 ```
 
 ## Blocking Game Input Over Panels
