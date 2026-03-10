@@ -76,6 +76,10 @@ pub struct UiState {
     pub selection: InspectorSelection,
     /// Search filter for hierarchy tab.
     pub hierarchy_search: String,
+    /// Search filter for resources tab.
+    pub resources_search: String,
+    /// Search filter for inspector tab.
+    pub inspector_search: String,
     /// Custom tabs extracted from the registry for rendering.
     custom_tabs: Vec<Box<dyn InspectorTab>>,
 }
@@ -90,6 +94,8 @@ impl UiState {
             selection: InspectorSelection::Entities,
             viewport_rect: egui::Rect::NOTHING,
             hierarchy_search: String::new(),
+            resources_search: String::new(),
+            inspector_search: String::new(),
             custom_tabs: Vec::new(),
         }
     }
@@ -146,6 +152,8 @@ impl UiState {
             selected_entities: &mut self.selected_entities,
             selection: &mut self.selection,
             hierarchy_search: &mut self.hierarchy_search,
+            resources_search: &mut self.resources_search,
+            inspector_search: &mut self.inspector_search,
             custom_tabs: &mut self.custom_tabs,
         };
         egui_dock::DockArea::new(&mut self.state)
