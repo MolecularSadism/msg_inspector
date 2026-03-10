@@ -397,6 +397,8 @@ pub struct TabViewer<'a> {
     pub selection: &'a mut InspectorSelection,
     pub viewport_rect: &'a mut egui::Rect,
     pub hierarchy_search: &'a mut String,
+    pub resources_search: &'a mut String,
+    pub inspector_search: &'a mut String,
     pub custom_tabs: &'a mut [Box<dyn InspectorTab>],
 }
 
@@ -433,10 +435,16 @@ impl egui_dock::TabViewer for TabViewer<'_> {
                             &type_registry,
                             self.selected_entities,
                             self.selection,
+                            self.inspector_search,
                         );
                     }
                     BuiltinTab::Resources => {
-                        resources::render(ui, &type_registry, self.selection);
+                        resources::render(
+                            ui,
+                            &type_registry,
+                            self.selection,
+                            self.resources_search,
+                        );
                     }
                     BuiltinTab::Assets => {
                         assets::render(ui, &type_registry, self.world, self.selection);
