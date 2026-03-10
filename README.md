@@ -87,6 +87,31 @@ app.register_inspector_interactive("spawner", "Actors", |ui, world| {
 });
 ```
 
+## Custom Diagnostics Counters
+
+Register component counters to track how many entities have a given component, displayed in the Diagnostics tab:
+
+```rust
+#[derive(Component)]
+struct Collider;
+
+#[derive(Component)]
+struct RigidBody;
+
+app.add_plugins(InspectorPlugin)
+    .with_counter::<Collider>()
+    .with_counter::<RigidBody>();
+```
+
+You can also register arbitrary counters with a custom label and count function:
+
+```rust
+app.with_custom_counter("Visible Meshes", |world| {
+    // any logic that returns a usize
+    world.entities().len() as usize
+});
+```
+
 ## Blocking Game Input Over Panels
 
 Use `egui_pointer_over_area` to prevent game clicks when the cursor is over panels:

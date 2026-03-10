@@ -12,6 +12,7 @@
 //! - **Entity picking**: Click entities in the viewport to select them
 //! - **Viewport management**: Automatic camera viewport clipping to dock area
 //! - **Tab registration**: Games can register custom tabs via [`InspectorExt`] trait
+//! - **Custom counters**: Track component counts in the Diagnostics tab via [`InspectorExt::with_counter`]
 //!
 //! ## Built-in Tabs
 //!
@@ -115,7 +116,10 @@ use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 pub use panel::show_ui_system;
 pub use picking::{CrosshairConfig, handle_picking_clicks, update_picked_entity_marker};
 pub use state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState};
-pub use tabs::{BuiltinTab, DockPosition, InspectorExt, InspectorTab, InspectorTabRegistry, Tab};
+pub use tabs::{
+    BuiltinTab, DiagnosticsCounters, DockPosition, InspectorExt, InspectorTab,
+    InspectorTabRegistry, Tab,
+};
 pub use viewport::{InspectorMainCamera, egui_pointer_over_area, set_camera_viewport};
 
 // Re-export egui so consumers don't need to depend on bevy-inspector-egui directly
@@ -142,6 +146,7 @@ impl Plugin for InspectorPlugin {
             .init_resource::<InspectorEnabled>()
             .init_resource::<GameViewportRect>()
             .init_resource::<InspectorTabRegistry>()
+            .init_resource::<tabs::DiagnosticsCounters>()
             .init_resource::<picking::CrosshairConfig>();
 
         // Initialize UiState after tab registry so built-in tabs can be set up

@@ -16,6 +16,9 @@ pub use crate::{
     InspectorPlugin,
     picking::CrosshairConfig,
     state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState},
-    tabs::{BuiltinTab, DockPosition, InspectorExt, InspectorTab, InspectorTabRegistry, Tab},
+    tabs::{
+        BuiltinTab, DiagnosticsCounters, DockPosition, InspectorExt, InspectorTab,
+        InspectorTabRegistry, Tab,
+    },
     viewport::{InspectorMainCamera, egui_pointer_over_area},
 };
