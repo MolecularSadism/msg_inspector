@@ -99,9 +99,10 @@ fn render_filtered_hierarchy(
         ui.label(format!("{} results", matching_entities.len()));
         ui.add_space(4.0);
 
-        for (entity, display_name, _, _) in matching_entities {
+        for (entity, display_name, depth, _) in matching_entities {
             let is_selected = selected_entities.contains(entity);
-            let label = format!("{display_name} ({entity:?})");
+            let indent = "  ".repeat(depth as usize);
+            let label = format!("{indent}{display_name} ({entity:?})");
 
             if ui.selectable_label(is_selected, label).clicked() {
                 let modifiers = ui.input(|i| i.modifiers);
