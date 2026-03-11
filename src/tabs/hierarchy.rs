@@ -42,6 +42,17 @@ pub fn render(
     }
 }
 
+/// Compute the depth of an entity in the hierarchy (0 for root entities).
+fn hierarchy_depth(world: &World, entity: Entity) -> u32 {
+    let mut depth = 0;
+    let mut current = entity;
+    while let Some(child_of) = world.entity(current).get::<ChildOf>() {
+        depth += 1;
+        current = child_of.parent();
+    }
+    depth
+}
+
 /// Render a filtered list of entities matching the search query using fuzzy matching.
 fn render_filtered_hierarchy(
     ui: &mut egui::Ui,
@@ -51,13 +62,15 @@ fn render_filtered_hierarchy(
     search_query: &str,
 ) {
     egui::ScrollArea::vertical().show(ui, |ui| {
-        let mut matching_entities: Vec<(Entity, String, isize)> = Vec::new();
+        // (Entity, display name, hierarchy depth, match score)
+        let mut matching_entities: Vec<(Entity, String, u32, isize)> = Vec::new();
 
         // Fuzzy search by Name component
         let mut q_named = world.query::<(Entity, &Name)>();
         for (entity, name) in q_named.iter(world) {
             if let Some(m) = best_match(search_query, name.as_str()) {
-                matching_entities.push((entity, name.to_string(), m.score()));
+                let depth = hierarchy_depth(world, entity);
+                matching_entities.push((entity, name.to_string(), depth, m.score()));
             }
         }
 
@@ -70,20 +83,23 @@ fn render_filtered_hierarchy(
                 let name = entity_ref
                     .get::<Name>()
                     .map_or_else(|| id_str.clone(), std::string::ToString::to_string);
-                if !matching_entities.iter().any(|(e, _, _)| *e == entity_id) {
-                    matching_entities.push((entity_id, name, m.score()));
+                if !matching_entities.iter().any(|(e, _, _, _)| *e == entity_id) {
+                    let depth = hierarchy_depth(world, entity_id);
+                    matching_entities.push((entity_id, name, depth, m.score()));
                 }
             }
         }
 
-        // Sort by score descending (best matches first)
-        matching_entities.sort_by(|(_, _, a), (_, _, b)| b.cmp(a));
+        // Sort by hierarchy depth ascending first, then by score descending
+        matching_entities.sort_by(|(_, _, depth_a, score_a), (_, _, depth_b, score_b)| {
+            depth_a.cmp(depth_b).then_with(|| score_b.cmp(score_a))
+        });
 
         // Display results
         ui.label(format!("{} results", matching_entities.len()));
         ui.add_space(4.0);
 
-        for (entity, display_name, _) in matching_entities {
+        for (entity, display_name, _, _) in matching_entities {
             let is_selected = selected_entities.contains(entity);
             let label = format!("{display_name} ({entity:?})");
 
