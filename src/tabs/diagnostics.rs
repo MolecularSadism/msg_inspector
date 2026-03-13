@@ -140,7 +140,7 @@ pub fn render(ui: &mut egui::Ui, world: &World) {
 
     // Performance metrics in a grid
     ui.columns(2, |columns| {
-        columns[0].label("FPS:");
+        columns[0].label("FPS (Avg.):");
         columns[1].colored_label(
             if fps >= 60.0 {
                 egui::Color32::GREEN
@@ -149,10 +149,10 @@ pub fn render(ui: &mut egui::Ui, world: &World) {
             } else {
                 egui::Color32::RED
             },
-            format!("{fps:.1} Hz ({avg_fps:.1} Hz avg)"),
+            format!("{fps:.1} Hz ({avg_fps:.1} Hz)"),
         );
 
-        columns[0].label("Frame Time:");
+        columns[0].label("Frame Time (Avg.):");
         columns[1].colored_label(
             if frame_time <= 16.7 {
                 egui::Color32::GREEN
@@ -161,7 +161,7 @@ pub fn render(ui: &mut egui::Ui, world: &World) {
             } else {
                 egui::Color32::RED
             },
-            format!("{frame_time:.1} ms ({avg_frame_time:.1} ms avg)"),
+            format!("{frame_time:.1} ms ({avg_frame_time:.1} ms)"),
         );
     });
 
