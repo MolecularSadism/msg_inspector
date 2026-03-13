@@ -16,8 +16,8 @@ pub struct FrameTimeHistory {
     pub avg_fps: f32,
     /// Cached 1-second average frame time in ms.
     pub avg_frame_time: f32,
-    /// Cached 1-second max FPS (from the shortest frame).
-    pub max_fps: f32,
+    /// Cached 1-second min FPS (from the shortest frame).
+    pub min_fps: f32,
     /// Cached 1-second max frame time in ms (from the longest frame).
     pub max_frame_time: f32,
 }
@@ -28,7 +28,7 @@ impl Default for FrameTimeHistory {
             entries: VecDeque::new(),
             avg_fps: 0.0,
             avg_frame_time: 0.0,
-            max_fps: 0.0,
+            min_fps: 0.0,
             max_frame_time: 0.0,
         }
     }
@@ -52,7 +52,7 @@ impl FrameTimeHistory {
         if self.entries.is_empty() {
             self.avg_fps = 0.0;
             self.avg_frame_time = 0.0;
-            self.max_fps = 0.0;
+            self.min_fps = 0.0;
             self.max_frame_time = 0.0;
         } else {
             let count = self.entries.len() as f32;
@@ -60,9 +60,8 @@ impl FrameTimeHistory {
             self.avg_frame_time = (sum_delta / count) * 1000.0;
             self.avg_fps = count / sum_delta;
 
-            let min_delta = self.entries.iter().map(|(_, d)| *d).fold(f32::INFINITY, f32::min);
             let max_delta = self.entries.iter().map(|(_, d)| *d).fold(0.0_f32, f32::max);
-            self.max_fps = 1.0 / min_delta;
+            self.min_fps = 1.0 / max_delta;
             self.max_frame_time = max_delta * 1000.0;
         }
     }
@@ -141,12 +140,12 @@ pub fn render(ui: &mut egui::Ui, world: &World) {
     // Retrieve 1-second averages and maxima (updated by the frame_time_history_system)
     let (avg_fps, max_fps, avg_frame_time, max_frame_time) = world
         .get_resource::<FrameTimeHistory>()
-        .map(|h| (h.avg_fps, h.max_fps, h.avg_frame_time, h.max_frame_time))
+        .map(|h| (h.avg_fps, h.min_fps, h.avg_frame_time, h.max_frame_time))
         .unwrap_or((0.0, 0.0, 0.0, 0.0));
 
     // Performance metrics in a grid
     ui.columns(2, |columns| {
-        columns[0].label("FPS (Max):");
+        columns[0].label("FPS (Min):");
         columns[1].colored_label(
             if avg_fps >= 60.0 {
                 egui::Color32::GREEN
