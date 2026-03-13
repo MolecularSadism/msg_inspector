@@ -119,7 +119,7 @@ pub use panel::show_ui_system;
 pub use picking::{CrosshairConfig, handle_picking_clicks, update_picked_entity_marker};
 pub use state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState};
 pub use tabs::{
-    BuiltinTab, DiagnosticsCounters, DockPosition, InspectorExt, InspectorTab,
+    BuiltinTab, DiagnosticsCounters, DockPosition, FrameTimeHistory, InspectorExt, InspectorTab,
     InspectorTabRegistry, Tab,
 };
 pub use viewport::{InspectorMainCamera, egui_pointer_over_area, set_camera_viewport};
@@ -239,7 +239,8 @@ impl Plugin for InspectorPlugin {
             .init_resource::<InspectorEnabled>()
             .init_resource::<GameViewportRect>()
             .init_resource::<InspectorTabRegistry>()
-            .init_resource::<picking::CrosshairConfig>();
+            .init_resource::<picking::CrosshairConfig>()
+            .init_resource::<tabs::FrameTimeHistory>();
 
         // Initialize UiState after tab registry so built-in tabs can be set up
         app.add_systems(Startup, state::initialize_ui_state);
@@ -253,7 +254,8 @@ impl Plugin for InspectorPlugin {
             .add_systems(PostUpdate, set_camera_viewport.after(show_ui_system))
             .add_systems(Update, panel::toggle_inspector)
             .add_systems(Update, handle_picking_clicks)
-            .add_systems(Update, update_picked_entity_marker);
+            .add_systems(Update, update_picked_entity_marker)
+            .add_systems(Update, tabs::update_frame_time_history);
 
         // Type registrations for reflection
         app.register_type::<Option<Handle<Image>>>()

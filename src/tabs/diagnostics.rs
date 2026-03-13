@@ -2,8 +2,58 @@
 //!
 //! Displays FPS, frame time, entity counts, and user-registered component counters.
 
+use std::collections::VecDeque;
+
 use bevy::prelude::*;
 use bevy_egui::egui;
+
+/// Tracks frame times over the last 1 second to compute averages.
+#[derive(Resource)]
+pub struct FrameTimeHistory {
+    /// Ring buffer of (elapsed_seconds, delta_seconds) pairs.
+    entries: VecDeque<(f64, f32)>,
+    /// Cached 1-second average FPS.
+    pub avg_fps: f32,
+    /// Cached 1-second average frame time in ms.
+    pub avg_frame_time: f32,
+}
+
+impl Default for FrameTimeHistory {
+    fn default() -> Self {
+        Self {
+            entries: VecDeque::new(),
+            avg_fps: 0.0,
+            avg_frame_time: 0.0,
+        }
+    }
+}
+
+impl FrameTimeHistory {
+    /// Record the current frame and recompute averages.
+    fn update(&mut self, elapsed: f64, delta: f32) {
+        self.entries.push_back((elapsed, delta));
+
+        // Remove entries older than 1 second
+        let cutoff = elapsed - 1.0;
+        while let Some(&(t, _)) = self.entries.front() {
+            if t < cutoff {
+                self.entries.pop_front();
+            } else {
+                break;
+            }
+        }
+
+        if self.entries.is_empty() {
+            self.avg_fps = 0.0;
+            self.avg_frame_time = 0.0;
+        } else {
+            let count = self.entries.len() as f32;
+            let sum_delta: f32 = self.entries.iter().map(|(_, d)| d).sum();
+            self.avg_frame_time = (sum_delta / count) * 1000.0;
+            self.avg_fps = count / sum_delta;
+        }
+    }
+}
 
 /// A single counter entry displayed in the diagnostics tab.
 struct CounterEntry {
@@ -65,6 +115,11 @@ fn short_type_name(full: &str) -> String {
     base.rsplit("::").next().unwrap_or(base).to_string()
 }
 
+/// System that updates the [`FrameTimeHistory`] resource each frame.
+pub fn update_frame_time_history(time: Res<Time>, mut history: ResMut<FrameTimeHistory>) {
+    history.update(time.elapsed_secs_f64(), time.delta_secs());
+}
+
 /// Render the diagnostics tab.
 pub fn render(ui: &mut egui::Ui, world: &World) {
     ui.heading("Performance");
@@ -77,6 +132,12 @@ pub fn render(ui: &mut egui::Ui, world: &World) {
     let fps = 1.0 / time.delta_secs();
     let frame_time = time.delta_secs() * 1000.0;
 
+    // Retrieve 1-second averages (updated by the frame_time_history_system)
+    let (avg_fps, avg_frame_time) = world
+        .get_resource::<FrameTimeHistory>()
+        .map(|h| (h.avg_fps, h.avg_frame_time))
+        .unwrap_or((fps, frame_time));
+
     // Performance metrics in a grid
     ui.columns(2, |columns| {
         columns[0].label("FPS:");
@@ -88,7 +149,7 @@ pub fn render(ui: &mut egui::Ui, world: &World) {
             } else {
                 egui::Color32::RED
             },
-            format!("{fps:.1} Hz"),
+            format!("{fps:.1} Hz ({avg_fps:.1} avg)"),
         );
 
         columns[0].label("Frame Time:");
@@ -100,7 +161,7 @@ pub fn render(ui: &mut egui::Ui, world: &World) {
             } else {
                 egui::Color32::RED
             },
-            format!("{frame_time:.1} ms"),
+            format!("{frame_time:.1} ms ({avg_frame_time:.1} avg)"),
         );
     });
 

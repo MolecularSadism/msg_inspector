@@ -7,7 +7,7 @@ mod hierarchy;
 mod inspector;
 mod resources;
 
-pub use diagnostics::DiagnosticsCounters;
+pub use diagnostics::{DiagnosticsCounters, FrameTimeHistory, update_frame_time_history};
 
 use bevy::prelude::*;
 use bevy_egui::egui;
