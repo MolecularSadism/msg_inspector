@@ -7,7 +7,7 @@ use std::collections::VecDeque;
 use bevy::prelude::*;
 use bevy_egui::egui;
 
-/// Tracks frame times over the last 1 second to compute averages.
+/// Tracks frame times over the last 1 second to compute averages and maxima.
 #[derive(Resource)]
 pub struct FrameTimeHistory {
     /// Ring buffer of (elapsed_seconds, delta_seconds) pairs.
@@ -16,6 +16,10 @@ pub struct FrameTimeHistory {
     pub avg_fps: f32,
     /// Cached 1-second average frame time in ms.
     pub avg_frame_time: f32,
+    /// Cached 1-second max FPS (from the shortest frame).
+    pub max_fps: f32,
+    /// Cached 1-second max frame time in ms (from the longest frame).
+    pub max_frame_time: f32,
 }
 
 impl Default for FrameTimeHistory {
@@ -24,6 +28,8 @@ impl Default for FrameTimeHistory {
             entries: VecDeque::new(),
             avg_fps: 0.0,
             avg_frame_time: 0.0,
+            max_fps: 0.0,
+            max_frame_time: 0.0,
         }
     }
 }
@@ -46,11 +52,18 @@ impl FrameTimeHistory {
         if self.entries.is_empty() {
             self.avg_fps = 0.0;
             self.avg_frame_time = 0.0;
+            self.max_fps = 0.0;
+            self.max_frame_time = 0.0;
         } else {
             let count = self.entries.len() as f32;
             let sum_delta: f32 = self.entries.iter().map(|(_, d)| d).sum();
             self.avg_frame_time = (sum_delta / count) * 1000.0;
             self.avg_fps = count / sum_delta;
+
+            let min_delta = self.entries.iter().map(|(_, d)| *d).fold(f32::INFINITY, f32::min);
+            let max_delta = self.entries.iter().map(|(_, d)| *d).fold(0.0_f32, f32::max);
+            self.max_fps = 1.0 / min_delta;
+            self.max_frame_time = max_delta * 1000.0;
         }
     }
 }
@@ -125,43 +138,36 @@ pub fn render(ui: &mut egui::Ui, world: &World) {
     ui.heading("Performance");
     ui.separator();
 
-    let Some(time) = world.get_resource::<Time>() else {
-        ui.label("Time resource not available");
-        return;
-    };
-    let fps = 1.0 / time.delta_secs();
-    let frame_time = time.delta_secs() * 1000.0;
-
-    // Retrieve 1-second averages (updated by the frame_time_history_system)
-    let (avg_fps, avg_frame_time) = world
+    // Retrieve 1-second averages and maxima (updated by the frame_time_history_system)
+    let (avg_fps, max_fps, avg_frame_time, max_frame_time) = world
         .get_resource::<FrameTimeHistory>()
-        .map(|h| (h.avg_fps, h.avg_frame_time))
-        .unwrap_or((fps, frame_time));
+        .map(|h| (h.avg_fps, h.max_fps, h.avg_frame_time, h.max_frame_time))
+        .unwrap_or((0.0, 0.0, 0.0, 0.0));
 
     // Performance metrics in a grid
     ui.columns(2, |columns| {
-        columns[0].label("FPS (Avg.):");
+        columns[0].label("FPS (Max):");
         columns[1].colored_label(
-            if fps >= 60.0 {
+            if avg_fps >= 60.0 {
                 egui::Color32::GREEN
-            } else if fps >= 30.0 {
+            } else if avg_fps >= 30.0 {
                 egui::Color32::YELLOW
             } else {
                 egui::Color32::RED
             },
-            format!("{fps:.1} Hz ({avg_fps:.1} Hz)"),
+            format!("{avg_fps:.1} Hz ({max_fps:.1} Hz)"),
         );
 
-        columns[0].label("Frame Time (Avg.):");
+        columns[0].label("Frame Time (Max):");
         columns[1].colored_label(
-            if frame_time <= 16.7 {
+            if avg_frame_time <= 16.7 {
                 egui::Color32::GREEN
-            } else if frame_time <= 33.3 {
+            } else if avg_frame_time <= 33.3 {
                 egui::Color32::YELLOW
             } else {
                 egui::Color32::RED
             },
-            format!("{frame_time:.1} ms ({avg_frame_time:.1} ms)"),
+            format!("{avg_frame_time:.1} ms ({max_frame_time:.1} ms)"),
         );
     });
 
