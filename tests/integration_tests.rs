@@ -150,6 +150,81 @@ fn _compile_test_custom_tab_registration() {
     registry.register(TestTab);
 }
 
+// ── AnimationFSM tests ──────────────────────────────────────────────
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
+enum TestAnim {
+    #[default]
+    Idle,
+    Attack,
+    EnemyAttack,
+}
+
+#[test]
+fn animation_fsm_rejects_same_state() {
+    use msg_inspector::animation::AnimationFSM;
+
+    let mut fsm = AnimationFSM::new(TestAnim::Attack);
+    fsm.clear_changed();
+
+    // Simulates the bug: game code calling transition_to(Attack) every frame
+    // while already in Attack. The FSM must silently ignore these.
+    for _ in 0..10 {
+        let changed = fsm.transition_to(TestAnim::Attack);
+        assert!(!changed, "same-state transition must be rejected");
+        assert!(
+            !fsm.changed(),
+            "changed flag must stay false on same-state transition"
+        );
+    }
+}
+
+#[test]
+fn animation_fsm_accepts_different_state() {
+    use msg_inspector::animation::AnimationFSM;
+
+    let mut fsm = AnimationFSM::new(TestAnim::Idle);
+    fsm.clear_changed();
+
+    assert!(fsm.transition_to(TestAnim::Attack));
+    assert!(fsm.changed());
+    assert_eq!(*fsm.current(), TestAnim::Attack);
+}
+
+#[test]
+fn animation_fsm_attack_retrigger_scenario() {
+    use msg_inspector::animation::AnimationFSM;
+
+    // Simulate: player enters Attack, then game loop keeps calling
+    // transition_to(Attack) — the animation should NOT restart.
+    let mut player = AnimationFSM::new(TestAnim::Idle);
+    player.clear_changed();
+
+    // Frame 1: enter Attack
+    assert!(player.transition_to(TestAnim::Attack));
+    assert!(player.changed());
+    player.clear_changed();
+
+    // Frame 2..N: game still says "attack" — must be ignored
+    for _ in 0..60 {
+        assert!(!player.transition_to(TestAnim::Attack));
+        assert!(!player.changed());
+    }
+
+    // Same scenario for enemy
+    let mut enemy = AnimationFSM::new(TestAnim::Idle);
+    enemy.clear_changed();
+
+    assert!(enemy.transition_to(TestAnim::EnemyAttack));
+    assert!(enemy.changed());
+    enemy.clear_changed();
+
+    for _ in 0..60 {
+        assert!(!enemy.transition_to(TestAnim::EnemyAttack));
+        assert!(!enemy.changed());
+    }
+}
+
 /// Compile-time verification that with_counter API works.
 #[allow(dead_code)]
 fn _compile_test_with_counter() {

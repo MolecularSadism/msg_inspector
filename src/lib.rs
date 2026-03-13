@@ -102,6 +102,7 @@
 //!
 //! Press the **Delete** key to toggle the inspector panel visibility.
 
+pub mod animation;
 mod panel;
 mod picking;
 pub mod prelude;

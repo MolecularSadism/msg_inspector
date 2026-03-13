@@ -14,6 +14,7 @@
 
 pub use crate::{
     InspectorPlugin,
+    animation::AnimationFSM,
     picking::CrosshairConfig,
     state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState},
     tabs::{
