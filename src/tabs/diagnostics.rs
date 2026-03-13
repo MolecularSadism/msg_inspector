@@ -149,7 +149,7 @@ pub fn render(ui: &mut egui::Ui, world: &World) {
             } else {
                 egui::Color32::RED
             },
-            format!("{fps:.1} Hz ({avg_fps:.1} avg)"),
+            format!("{fps:.1} Hz ({avg_fps:.1} Hz avg)"),
         );
 
         columns[0].label("Frame Time:");
@@ -161,7 +161,7 @@ pub fn render(ui: &mut egui::Ui, world: &World) {
             } else {
                 egui::Color32::RED
             },
-            format!("{frame_time:.1} ms ({avg_frame_time:.1} avg)"),
+            format!("{frame_time:.1} ms ({avg_frame_time:.1} ms avg)"),
         );
     });
 
