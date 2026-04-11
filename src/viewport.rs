@@ -24,7 +24,7 @@ pub fn set_camera_viewport(
     enabled: Res<InspectorEnabled>,
     window: Single<&Window, With<PrimaryWindow>>,
     mut cameras: Query<&mut Camera, (With<InspectorMainCamera>, Without<PrimaryEguiContext>)>,
-    mut egui_settings: Single<&mut EguiContextSettings>,
+    mut egui_settings: Single<&mut EguiContextSettings, With<PrimaryEguiContext>>,
 ) {
     egui_settings.capture_pointer_input = true;
 
