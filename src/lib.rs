@@ -8,7 +8,7 @@
 //!
 //! ## Features
 //!
-//! - **Built-in tabs**: `GameView`, Hierarchy, Inspector, Resources, Assets, Diagnostics
+//! - **Built-in tabs**: `GameView`, Entities, Hierarchy, Inspector, Resources, Assets, Diagnostics
 //! - **Entity picking**: Click entities in the viewport to select them
 //! - **Viewport management**: Automatic camera viewport clipping to dock area
 //! - **Tab registration**: Games can register custom tabs via [`InspectorExt`] trait
@@ -19,6 +19,7 @@
 //! | Tab | Description |
 //! |-----|-------------|
 //! | Game | The game viewport, clipped to not overlap with panels |
+//! | Entities | Entity browser sorted by registered principal components |
 //! | Hierarchy | Entity tree browser with search filtering |
 //! | Inspector | Entity component inspector using reflection |
 //! | Resources | Browse all registered resources |
@@ -120,7 +121,7 @@ pub use picking::{CrosshairConfig, handle_picking_clicks, update_picked_entity_m
 pub use state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState};
 pub use tabs::{
     BuiltinTab, DiagnosticsCounters, DockPosition, FrameTimeHistory, InspectorExt, InspectorTab,
-    InspectorTabRegistry, Tab,
+    InspectorTabRegistry, PrincipalRegistry, Tab,
 };
 pub use viewport::{InspectorMainCamera, egui_pointer_over_area, set_camera_viewport};
 
@@ -239,6 +240,7 @@ impl Plugin for InspectorPlugin {
             .init_resource::<InspectorEnabled>()
             .init_resource::<GameViewportRect>()
             .init_resource::<InspectorTabRegistry>()
+            .init_resource::<PrincipalRegistry>()
             .init_resource::<picking::CrosshairConfig>()
             .init_resource::<tabs::FrameTimeHistory>();
 
