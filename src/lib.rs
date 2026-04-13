@@ -120,8 +120,8 @@ pub use panel::show_ui_system;
 pub use picking::{CrosshairConfig, handle_picking_clicks, update_picked_entity_marker};
 pub use state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState};
 pub use tabs::{
-    BuiltinTab, DiagnosticsCounters, DockPosition, FrameTimeHistory, InspectorExt, InspectorTab,
-    InspectorTabRegistry, PrincipalRegistry, Tab,
+    ActiveCategory, BuiltinTab, DiagnosticsCounters, DockPosition, FrameTimeHistory,
+    InspectorExt, InspectorTab, InspectorTabRegistry, PrincipalRegistry, PrincipalTuple, Tab,
 };
 pub use viewport::{InspectorMainCamera, egui_pointer_over_area, set_camera_viewport};
 

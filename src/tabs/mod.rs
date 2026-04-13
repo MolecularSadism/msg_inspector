@@ -9,7 +9,7 @@ mod inspector;
 mod resources;
 
 pub use diagnostics::{DiagnosticsCounters, FrameTimeHistory, update_frame_time_history};
-pub use entities::{EntitiesTabState, PrincipalRegistry};
+pub use entities::{ActiveCategory, EntitiesTabState, PrincipalRegistry, PrincipalTuple};
 
 use bevy::prelude::*;
 use bevy_egui::egui;
@@ -163,6 +163,51 @@ pub trait InspectorExt {
     /// ```
     fn register_principal<C: Component>(&mut self) -> &mut Self;
 
+    /// Override the display name of the most recently registered principal.
+    ///
+    /// Chain this immediately after [`register_principal`](Self::register_principal)
+    /// to give the principal a custom label in the Entities tab.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// use msg_inspector::prelude::*;
+    ///
+    /// #[derive(Component)]
+    /// struct Enemy;
+    ///
+    /// fn plugin(app: &mut App) {
+    ///     app.add_plugins(InspectorPlugin::default());
+    ///     app.register_principal::<Enemy>().with_name("Bad Guys");
+    /// }
+    /// ```
+    fn with_name(&mut self, name: impl Into<String>) -> &mut Self;
+
+    /// Register a group of principal components under a shared parent category.
+    ///
+    /// The group appears as a collapsible parent in the Entities tab, with each
+    /// component type as a nested section inside it.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// use msg_inspector::prelude::*;
+    ///
+    /// #[derive(Component)]
+    /// struct Enemy;
+    ///
+    /// #[derive(Component)]
+    /// struct Npc;
+    ///
+    /// fn plugin(app: &mut App) {
+    ///     app.add_plugins(InspectorPlugin::default());
+    ///     app.register_principal_group::<(Enemy, Npc)>("Characters");
+    /// }
+    /// ```
+    fn register_principal_group<P: PrincipalTuple>(&mut self, name: &str) -> &mut Self;
+
     /// Register a custom tab with full `InspectorTab` implementation.
     fn register_inspector_tab<T: InspectorTab>(&mut self, tab: T) -> &mut Self;
 
@@ -261,6 +306,20 @@ impl InspectorExt for App {
         self.world_mut()
             .resource_mut::<PrincipalRegistry>()
             .register::<C>();
+        self
+    }
+
+    fn with_name(&mut self, name: impl Into<String>) -> &mut Self {
+        self.world_mut()
+            .resource_mut::<PrincipalRegistry>()
+            .set_last_name(name.into());
+        self
+    }
+
+    fn register_principal_group<P: PrincipalTuple>(&mut self, name: &str) -> &mut Self {
+        self.world_mut()
+            .resource_mut::<PrincipalRegistry>()
+            .register_group::<P>(name);
         self
     }
 

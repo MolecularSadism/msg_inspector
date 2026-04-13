@@ -8,9 +8,8 @@
 //! This spawns several entities with different component combinations to
 //! exercise the Entities tab:
 //!
-//! - **Enemy** entities (tagged with the `Enemy` principal)
-//! - **Npc** entities (tagged with the `Npc` principal)
-//! - **Pickup** entities (tagged with the `Pickup` principal)
+//! - **Characters** group containing **Enemy** and **Npc** principals
+//! - **Pickup** entities with a custom display name ("Lootables")
 //! - Entities with *multiple* principals (e.g., Enemy + Npc)
 //! - Plain entities with no principal (appear under "Uncategorized")
 
@@ -128,10 +127,10 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(InspectorPlugin::default())
-        // Register principal components — these become category trees
-        .register_principal::<Enemy>()
-        .register_principal::<Npc>()
-        .register_principal::<Pickup>()
+        // Group Enemy and Npc under a "Characters" parent category
+        .register_principal_group::<(Enemy, Npc)>("Characters")
+        // Register Pickup as a standalone principal with a custom display name
+        .register_principal::<Pickup>().with_name("Lootables")
         .add_systems(Startup, setup)
         .run();
 }
