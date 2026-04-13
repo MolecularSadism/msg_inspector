@@ -150,8 +150,8 @@ pub fn route_cameras_to_game_window(
 #[allow(clippy::cast_possible_truncation)]
 pub fn sync_game_window_position(
     ui_state: Res<UiState>,
-    inspector_window: Single<&Window, With<PrimaryWindow>>,
-    mut game_window: Single<&mut Window, With<GameWindow>>,
+    inspector_window: Single<&Window, (With<PrimaryWindow>, Without<GameWindow>)>,
+    mut game_window: Single<&mut Window, (With<GameWindow>, Without<PrimaryWindow>)>,
     enabled: Res<InspectorEnabled>,
 ) {
     if !enabled.0 {
