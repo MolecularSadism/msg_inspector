@@ -17,6 +17,22 @@ use bevy_inspector_egui::bevy_inspector::hierarchy::SelectedEntities;
 
 use crate::state::InspectorSelection;
 
+/// Render a consistent search/filter bar with hint text and a clear button.
+pub(crate) fn search_bar(ui: &mut egui::Ui, hint: &str, text: &mut String) {
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 4.0;
+        ui.label(egui::RichText::new("▶").small().weak());
+        ui.add(
+            egui::TextEdit::singleline(text)
+                .desired_width(ui.available_width() - 24.0)
+                .hint_text(egui::RichText::new(hint).weak()),
+        );
+        if !text.is_empty() && ui.small_button("X").on_hover_text("Clear").clicked() {
+            text.clear();
+        }
+    });
+}
+
 /// Trait for registering custom dev panel tabs.
 ///
 /// Implement this trait to create custom tabs with full control over
@@ -590,13 +606,13 @@ impl egui_dock::TabViewer for TabViewer<'_> {
     fn title(&mut self, window: &mut Self::Tab) -> egui::WidgetText {
         match window {
             Tab::Builtin(builtin) => match builtin {
-                BuiltinTab::GameView => "Game".into(),
-                BuiltinTab::Entities => "Entities".into(),
-                BuiltinTab::Hierarchy => "Hierarchy".into(),
-                BuiltinTab::Inspector => "Inspector".into(),
-                BuiltinTab::Resources => "Resources".into(),
-                BuiltinTab::Assets => "Assets".into(),
-                BuiltinTab::Diagnostics => "Diagnostics".into(),
+                BuiltinTab::GameView => "▶ Game".into(),
+                BuiltinTab::Entities => "● Entities".into(),
+                BuiltinTab::Hierarchy => "△ Hierarchy".into(),
+                BuiltinTab::Inspector => "◆ Inspector".into(),
+                BuiltinTab::Resources => "■ Resources".into(),
+                BuiltinTab::Assets => "◇ Assets".into(),
+                BuiltinTab::Diagnostics => "○ Diagnostics".into(),
             },
             Tab::Custom(index) => {
                 if let Some(tab) = self.custom_tabs.get(*index) {

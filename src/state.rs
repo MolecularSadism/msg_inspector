@@ -9,6 +9,38 @@ use egui_dock::{DockState, NodeIndex, Style};
 
 use crate::tabs::{BuiltinTab, EntitiesTabState, InspectorTab, InspectorTabRegistry, Tab};
 
+/// Build a customized dock style with polished tab bar, rounding, and spacing.
+fn dock_style(egui_style: &egui::Style) -> Style {
+    let mut style = Style::from_egui(egui_style);
+
+    // Padding around the entire dock area
+    style.dock_area_padding = Some(egui::Margin::same(2));
+
+    // Taller tab bar for breathing room
+    style.tab_bar.height = 28.0;
+
+    // More content padding inside tab bodies
+    style.tab.tab_body.inner_margin = egui::Margin::same(6);
+
+    // Small gap between tabs
+    style.tab.spacing = 2.0;
+
+    // Rounded top corners on all tab interaction states
+    let rounding = egui::CornerRadius { nw: 4, ne: 4, sw: 0, se: 0 };
+    style.tab.active.corner_radius = rounding;
+    style.tab.focused.corner_radius = rounding;
+    style.tab.hovered.corner_radius = rounding;
+    style.tab.inactive.corner_radius = rounding;
+    style.tab.active_with_kb_focus.corner_radius = rounding;
+    style.tab.inactive_with_kb_focus.corner_radius = rounding;
+    style.tab.focused_with_kb_focus.corner_radius = rounding;
+
+    // Subtler separator
+    style.separator.width = 1.5;
+
+    style
+}
+
 /// Resource controlling whether the inspector panel is visible.
 ///
 /// Toggle with the Delete key.
@@ -162,7 +194,7 @@ impl UiState {
             custom_tabs: &mut self.custom_tabs,
         };
         egui_dock::DockArea::new(&mut self.state)
-            .style(Style::from_egui(ctx.style().as_ref()))
+            .style(dock_style(ctx.style().as_ref()))
             .show(ctx, &mut tab_viewer);
     }
 }

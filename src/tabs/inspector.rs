@@ -22,14 +22,7 @@ pub fn render(
     selection: &InspectorSelection,
     inspector_search: &mut String,
 ) {
-    // Search input
-    ui.horizontal(|ui| {
-        ui.label("Filter:");
-        ui.text_edit_singleline(inspector_search);
-        if ui.small_button("X").clicked() {
-            inspector_search.clear();
-        }
-    });
+    super::search_bar(ui, "Filter components...", inspector_search);
     ui.separator();
 
     let search_query = inspector_search.trim().to_string();
@@ -40,9 +33,26 @@ pub fn render(
                 render_matching_components_list(ui, world, selected_entities, &search_query);
                 ui.separator();
             }
-            match selected_entities.as_slice() {
-                &[entity] => ui_for_entity_with_children(world, entity, ui),
-                entities => ui_for_entities_shared_components(world, entities, ui),
+            if selected_entities.as_slice().is_empty() {
+                ui.add_space(20.0);
+                ui.vertical_centered(|ui| {
+                    ui.label(egui::RichText::new("◆").size(24.0).weak());
+                    ui.add_space(4.0);
+                    ui.label(egui::RichText::new("No entity selected").weak());
+                    ui.add_space(2.0);
+                    ui.label(
+                        egui::RichText::new(
+                            "Select an entity from the Hierarchy or Entities tab.",
+                        )
+                        .weak()
+                        .small(),
+                    );
+                });
+            } else {
+                match selected_entities.as_slice() {
+                    &[entity] => ui_for_entity_with_children(world, entity, ui),
+                    entities => ui_for_entities_shared_components(world, entities, ui),
+                }
             }
         }
         InspectorSelection::Resource(type_id, name) => {
@@ -94,7 +104,7 @@ fn render_matching_components_list(
         matching.sort_by(|(_, a): &(&str, isize), (_, b): &(&str, isize)| b.cmp(a));
 
         if matching.is_empty() {
-            ui.label("No matching components");
+            ui.label(egui::RichText::new("No matching components").weak().italics());
         } else {
             ui.label(format!("{} matching components:", matching.len()));
             for (name, _) in &matching {
