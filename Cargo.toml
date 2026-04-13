@@ -23,6 +23,9 @@ bevy_egui = { version = "0.39.1" }
 egui_dock = "0.18"
 sublime_fuzzy = "0.7"
 
+[target.'cfg(target_os = "windows")'.dependencies]
+raw-window-handle = "0.6"
+
 [dev-dependencies]
 bevy = { version = "0.18", default-features = false, features = [
     "bevy_core_pipeline",
