@@ -2,12 +2,14 @@
 
 mod assets;
 mod diagnostics;
+pub(crate) mod entities;
 mod game_view;
 mod hierarchy;
 mod inspector;
 mod resources;
 
 pub use diagnostics::{DiagnosticsCounters, FrameTimeHistory, update_frame_time_history};
+pub use entities::{EntitiesTabState, PrincipalRegistry};
 
 use bevy::prelude::*;
 use bevy_egui::egui;
@@ -135,6 +137,32 @@ impl InspectorTabRegistry {
 
 /// Extension trait for App to register inspector tabs.
 pub trait InspectorExt {
+    /// Register a principal component type for the Entities tab.
+    ///
+    /// Each registered principal component gets a collapsible tree in the
+    /// Entities tab, listing every entity that has this component. Entities
+    /// without any registered principal appear under "Uncategorized".
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// use msg_inspector::prelude::*;
+    ///
+    /// #[derive(Component)]
+    /// struct Enemy;
+    ///
+    /// #[derive(Component)]
+    /// struct Npc;
+    ///
+    /// fn plugin(app: &mut App) {
+    ///     app.add_plugins(InspectorPlugin::default());
+    ///     app.register_principal::<Enemy>()
+    ///        .register_principal::<Npc>();
+    /// }
+    /// ```
+    fn register_principal<C: Component>(&mut self) -> &mut Self;
+
     /// Register a custom tab with full `InspectorTab` implementation.
     fn register_inspector_tab<T: InspectorTab>(&mut self, tab: T) -> &mut Self;
 
@@ -229,6 +257,13 @@ pub trait InspectorExt {
 }
 
 impl InspectorExt for App {
+    fn register_principal<C: Component>(&mut self) -> &mut Self {
+        self.world_mut()
+            .resource_mut::<PrincipalRegistry>()
+            .register::<C>();
+        self
+    }
+
     fn register_inspector_tab<T: InspectorTab>(&mut self, tab: T) -> &mut Self {
         self.world_mut()
             .resource_mut::<InspectorTabRegistry>()
@@ -382,6 +417,8 @@ impl From<BuiltinTab> for Tab {
 pub enum BuiltinTab {
     /// The game viewport.
     GameView,
+    /// Entity browser sorted by principal components.
+    Entities,
     /// Entity hierarchy browser.
     Hierarchy,
     /// Entity/resource/asset inspector.
@@ -403,6 +440,7 @@ pub struct TabViewer<'a> {
     pub hierarchy_search: &'a mut String,
     pub resources_search: &'a mut String,
     pub inspector_search: &'a mut String,
+    pub entities_tab_state: &'a mut EntitiesTabState,
     pub custom_tabs: &'a mut [Box<dyn InspectorTab>],
 }
 
@@ -422,6 +460,15 @@ impl egui_dock::TabViewer for TabViewer<'_> {
                 match builtin {
                     BuiltinTab::GameView => {
                         game_view::render(ui, self.viewport_rect);
+                    }
+                    BuiltinTab::Entities => {
+                        entities::render(
+                            ui,
+                            self.world,
+                            self.selected_entities,
+                            self.selection,
+                            self.entities_tab_state,
+                        );
                     }
                     BuiltinTab::Hierarchy => {
                         hierarchy::render(
@@ -485,6 +532,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
         match window {
             Tab::Builtin(builtin) => match builtin {
                 BuiltinTab::GameView => "Game".into(),
+                BuiltinTab::Entities => "Entities".into(),
                 BuiltinTab::Hierarchy => "Hierarchy".into(),
                 BuiltinTab::Inspector => "Inspector".into(),
                 BuiltinTab::Resources => "Resources".into(),

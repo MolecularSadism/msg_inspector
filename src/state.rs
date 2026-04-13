@@ -7,7 +7,7 @@ use bevy_egui::egui;
 use bevy_inspector_egui::bevy_inspector::hierarchy::SelectedEntities;
 use egui_dock::{DockState, NodeIndex, Style};
 
-use crate::tabs::{BuiltinTab, InspectorTab, InspectorTabRegistry, Tab};
+use crate::tabs::{BuiltinTab, EntitiesTabState, InspectorTab, InspectorTabRegistry, Tab};
 
 /// Resource controlling whether the inspector panel is visible.
 ///
@@ -80,6 +80,8 @@ pub struct UiState {
     pub resources_search: String,
     /// Search filter for inspector tab.
     pub inspector_search: String,
+    /// State for the Entities tab (active tree, search).
+    pub entities_tab_state: EntitiesTabState,
     /// Custom tabs extracted from the registry for rendering.
     custom_tabs: Vec<Box<dyn InspectorTab>>,
 }
@@ -96,6 +98,7 @@ impl UiState {
             hierarchy_search: String::new(),
             resources_search: String::new(),
             inspector_search: String::new(),
+            entities_tab_state: EntitiesTabState::default(),
             custom_tabs: Vec::new(),
         }
     }
@@ -116,11 +119,12 @@ impl UiState {
         let [main, left_panel] =
             tree.split_left(main, 0.2, vec![Tab::Builtin(BuiltinTab::Diagnostics)]);
 
-        // Hierarchy and Resources below diagnostics (as tabs in the same panel)
+        // Entities, Hierarchy, and Resources below diagnostics (as tabs in the same panel)
         tree.split_below(
             left_panel,
             0.2,
             vec![
+                Tab::Builtin(BuiltinTab::Entities),
                 Tab::Builtin(BuiltinTab::Hierarchy),
                 Tab::Builtin(BuiltinTab::Resources),
             ],
@@ -154,6 +158,7 @@ impl UiState {
             hierarchy_search: &mut self.hierarchy_search,
             resources_search: &mut self.resources_search,
             inspector_search: &mut self.inspector_search,
+            entities_tab_state: &mut self.entities_tab_state,
             custom_tabs: &mut self.custom_tabs,
         };
         egui_dock::DockArea::new(&mut self.state)
