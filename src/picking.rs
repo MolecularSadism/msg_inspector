@@ -44,62 +44,15 @@ impl Default for CrosshairConfig {
     }
 }
 
-/// Handles mouse clicks on entities to select them for inspection.
-///
-/// Note: This system requires `MouseCoords` resource to be available from the game.
-/// Games should provide a system that populates world coordinates from mouse position.
-/// This is a simplified version that uses direct window cursor position.
-pub fn handle_picking_clicks(
-    mut ui_state: ResMut<UiState>,
-    enabled: Res<InspectorEnabled>,
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mouse_button: Res<ButtonInput<MouseButton>>,
-    windows: Query<&Window>,
-    mut q_egui_ctx: Query<&mut EguiContext, With<PrimaryEguiContext>>,
-    q_sprites: Query<(Entity, &GlobalTransform, &Sprite)>,
-    images: Res<Assets<Image>>,
-    camera_query: Query<(&Camera, &GlobalTransform)>,
-) {
-    if !enabled.0 {
-        return;
-    }
-
-    // Only handle left clicks
-    if !mouse_button.just_pressed(MouseButton::Left) {
-        return;
-    }
-
-    // Check if egui wants the pointer (clicking on UI panels)
-    if let Ok(mut egui_ctx) = q_egui_ctx.single_mut()
-        && egui_ctx.get_mut().wants_pointer_input()
-    {
-        return;
-    }
-
-    // Get cursor position in window
-    let Ok(window) = windows.single() else {
-        return;
-    };
-    let Some(cursor_pos) = window.cursor_position() else {
-        return;
-    };
-
-    // Find a camera to convert to world coordinates
-    // Try to find a camera that's not the egui camera
-    let Some((camera, camera_transform)) = camera_query.iter().find(|(cam, _)| cam.order >= 0)
-    else {
-        return;
-    };
-
-    // Convert cursor position to world coordinates
-    let Ok(mouse_world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) else {
-        return;
-    };
-
-    // Find the sprite with highest z-order that contains the mouse position
+/// Find the sprite with the highest z-order that contains the given world position.
+fn pick_sprite_at(
+    mouse_world_pos: Vec2,
+    q_sprites: &Query<(Entity, &GlobalTransform, &Sprite)>,
+    images: &Assets<Image>,
+) -> Option<Entity> {
     let mut best_hit: Option<(Entity, f32)> = None;
 
-    for (entity, global_transform, sprite) in &q_sprites {
+    for (entity, global_transform, sprite) in q_sprites {
         let sprite_pos = global_transform.translation().truncate();
         let sprite_z = global_transform.translation().z;
 
@@ -117,22 +70,121 @@ pub fn handle_picking_clicks(
             && mouse_world_pos.x <= max.x
             && mouse_world_pos.y >= min.y
             && mouse_world_pos.y <= max.y
+            && best_hit.is_none_or(|(_, best_z)| sprite_z > best_z)
         {
-            // Select entity with highest z (closest to camera)
-            if best_hit.is_none_or(|(_, best_z)| sprite_z > best_z) {
-                best_hit = Some((entity, sprite_z));
-            }
+            best_hit = Some((entity, sprite_z));
         }
     }
 
-    if let Some((entity, _)) = best_hit {
-        let add = keyboard.pressed(KeyCode::ControlLeft)
-            || keyboard.pressed(KeyCode::ControlRight)
-            || keyboard.pressed(KeyCode::ShiftLeft)
-            || keyboard.pressed(KeyCode::ShiftRight);
+    best_hit.map(|(entity, _)| entity)
+}
 
-        ui_state.selected_entities.select_maybe_add(entity, add);
-        ui_state.selection = InspectorSelection::Entities;
+/// Apply a pick result to the UI state, handling Ctrl/Shift multi-select.
+fn apply_pick(
+    entity: Entity,
+    keyboard: &ButtonInput<KeyCode>,
+    ui_state: &mut UiState,
+) {
+    let add = keyboard.pressed(KeyCode::ControlLeft)
+        || keyboard.pressed(KeyCode::ControlRight)
+        || keyboard.pressed(KeyCode::ShiftLeft)
+        || keyboard.pressed(KeyCode::ShiftRight);
+
+    ui_state.selected_entities.select_maybe_add(entity, add);
+    ui_state.selection = InspectorSelection::Entities;
+}
+
+/// Handles mouse clicks on entities to select them for inspection (SingleWindow mode).
+///
+/// Note: This system requires `MouseCoords` resource to be available from the game.
+/// Games should provide a system that populates world coordinates from mouse position.
+/// This is a simplified version that uses direct window cursor position.
+#[allow(clippy::too_many_arguments)]
+pub fn handle_picking_clicks(
+    mut ui_state: ResMut<UiState>,
+    enabled: Res<InspectorEnabled>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mouse_button: Res<ButtonInput<MouseButton>>,
+    windows: Query<&Window>,
+    mut q_egui_ctx: Query<&mut EguiContext, With<PrimaryEguiContext>>,
+    q_sprites: Query<(Entity, &GlobalTransform, &Sprite)>,
+    images: Res<Assets<Image>>,
+    camera_query: Query<(&Camera, &GlobalTransform)>,
+) {
+    if !enabled.0 {
+        return;
+    }
+
+    if !mouse_button.just_pressed(MouseButton::Left) {
+        return;
+    }
+
+    // Check if egui wants the pointer (clicking on UI panels)
+    if let Ok(mut egui_ctx) = q_egui_ctx.single_mut()
+        && egui_ctx.get_mut().wants_pointer_input()
+    {
+        return;
+    }
+
+    let Ok(window) = windows.single() else {
+        return;
+    };
+    let Some(cursor_pos) = window.cursor_position() else {
+        return;
+    };
+
+    let Some((camera, camera_transform)) = camera_query.iter().find(|(cam, _)| cam.order >= 0)
+    else {
+        return;
+    };
+
+    let Ok(mouse_world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) else {
+        return;
+    };
+
+    if let Some(entity) = pick_sprite_at(mouse_world_pos, &q_sprites, &images) {
+        apply_pick(entity, &keyboard, &mut ui_state);
+    }
+}
+
+/// Handles mouse clicks on entities in TwoWindow mode.
+///
+/// Reads cursor position from the game window (not the primary/inspector window)
+/// and does not check for egui pointer capture since the game window has no egui context.
+#[allow(clippy::too_many_arguments)]
+pub fn handle_picking_clicks_two_window(
+    mut ui_state: ResMut<UiState>,
+    enabled: Res<InspectorEnabled>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mouse_button: Res<ButtonInput<MouseButton>>,
+    game_window: Single<&Window, With<crate::panel::GameWindow>>,
+    q_sprites: Query<(Entity, &GlobalTransform, &Sprite)>,
+    images: Res<Assets<Image>>,
+    camera_query: Query<(&Camera, &GlobalTransform), With<crate::viewport::InspectorMainCamera>>,
+) {
+    if !enabled.0 {
+        return;
+    }
+
+    if !mouse_button.just_pressed(MouseButton::Left) {
+        return;
+    }
+
+    // No egui check needed — the game window has no egui context.
+    let Some(cursor_pos) = game_window.cursor_position() else {
+        return;
+    };
+
+    let Some((camera, camera_transform)) = camera_query.iter().next() else {
+        return;
+    };
+
+    let Ok(mouse_world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) else {
+        return;
+    };
+
+    if let Some(entity) = pick_sprite_at(mouse_world_pos, &q_sprites, &images) {
+        apply_pick(entity, &keyboard, &mut ui_state);
     }
 }
 

@@ -108,6 +108,8 @@ pub mod prelude;
 mod state;
 pub mod tabs;
 mod viewport;
+#[cfg(target_os = "windows")]
+mod win32;
 
 use std::sync::Mutex;
 
@@ -115,17 +117,43 @@ use bevy::{prelude::*, render::alpha::AlphaMode};
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
-pub use panel::show_ui_system;
-pub use picking::{CrosshairConfig, handle_picking_clicks, update_picked_entity_marker};
+pub use panel::{GameWindow, show_ui_system};
+pub use picking::{
+    CrosshairConfig, handle_picking_clicks, handle_picking_clicks_two_window,
+    update_picked_entity_marker,
+};
 pub use state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState};
 pub use tabs::{
     BuiltinTab, DiagnosticsCounters, DockPosition, FrameTimeHistory, InspectorExt, InspectorTab,
     InspectorTabRegistry, Tab,
 };
-pub use viewport::{InspectorMainCamera, egui_pointer_over_area, set_camera_viewport};
+pub use viewport::{
+    InspectorMainCamera, egui_pointer_over_area, route_cameras_to_game_window,
+    set_camera_viewport, sync_game_window_position,
+};
 
 // Re-export egui so consumers don't need to depend on bevy-inspector-egui directly
 pub use bevy_inspector_egui::egui;
+
+/// Controls how the inspector and game are windowed.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum InspectorMode {
+    /// Game renders in a separate borderless window that snaps into the inspector's
+    /// GameView tab area. On Windows, the game window is set as "owned" by the
+    /// inspector window so it always stays in front without being globally on top.
+    #[default]
+    TwoWindow,
+    /// Legacy mode: game viewport is clipped inside egui dock panels in one window.
+    SingleWindow,
+}
+
+/// Resource holding the current inspector windowing mode.
+#[derive(Resource, Clone, Copy, Debug)]
+pub struct InspectorModeRes(pub InspectorMode);
+
+/// Resource holding the entity ID of the game window (in TwoWindow mode).
+#[derive(Resource, Clone, Copy, Debug)]
+pub struct GameWindowEntity(pub Entity);
 
 /// Main plugin for the inspector framework.
 ///
@@ -160,12 +188,14 @@ pub use bevy_inspector_egui::egui;
 /// ```
 pub struct InspectorPlugin {
     counters: Mutex<tabs::DiagnosticsCounters>,
+    mode: InspectorMode,
 }
 
 impl Default for InspectorPlugin {
     fn default() -> Self {
         Self {
             counters: Mutex::new(tabs::DiagnosticsCounters::default()),
+            mode: InspectorMode::default(),
         }
     }
 }
@@ -224,13 +254,30 @@ impl InspectorPlugin {
         self.counters.lock().unwrap().add_custom(label, count_fn);
         self
     }
+
+    /// Set the inspector windowing mode.
+    ///
+    /// - [`InspectorMode::TwoWindow`] (default): Game renders in a separate borderless
+    ///   window that snaps into the inspector's GameView tab area.
+    /// - [`InspectorMode::SingleWindow`]: Legacy mode where the game viewport is clipped
+    ///   inside the egui dock panels.
+    #[must_use]
+    pub fn mode(mut self, mode: InspectorMode) -> Self {
+        self.mode = mode;
+        self
+    }
 }
 
 impl Plugin for InspectorPlugin {
     fn build(&self, app: &mut App) {
+        let mode = self.mode;
+
         // Core plugins
         app.add_plugins(EguiPlugin::default())
             .add_plugins(DefaultInspectorConfigPlugin);
+
+        // Mode resource
+        app.insert_resource(InspectorModeRes(mode));
 
         // State management
         app.register_type::<InspectorEnabled>()
@@ -245,17 +292,44 @@ impl Plugin for InspectorPlugin {
         // Initialize UiState after tab registry so built-in tabs can be set up
         app.add_systems(Startup, state::initialize_ui_state);
 
-        // Core systems
+        // Shared systems (both modes)
         app.add_systems(Startup, panel::setup.before(state::initialize_ui_state))
             .add_systems(
                 bevy_inspector_egui::bevy_egui::EguiPrimaryContextPass,
                 show_ui_system,
             )
-            .add_systems(PostUpdate, set_camera_viewport.after(show_ui_system))
             .add_systems(Update, panel::toggle_inspector)
-            .add_systems(Update, handle_picking_clicks)
             .add_systems(Update, update_picked_entity_marker)
             .add_systems(Update, tabs::update_frame_time_history);
+
+        // Mode-specific systems
+        match mode {
+            InspectorMode::TwoWindow => {
+                app.add_systems(
+                    Startup,
+                    panel::spawn_game_window.before(state::initialize_ui_state),
+                );
+                app.add_systems(
+                    PostUpdate,
+                    (
+                        route_cameras_to_game_window,
+                        sync_game_window_position.after(show_ui_system),
+                    ),
+                );
+                app.add_systems(Update, handle_picking_clicks_two_window);
+
+                // Win32: set up owner-window relationship for Z-order
+                #[cfg(target_os = "windows")]
+                {
+                    app.init_resource::<win32::OwnerWindowEstablished>();
+                    app.add_systems(Update, win32::setup_owner_window);
+                }
+            }
+            InspectorMode::SingleWindow => {
+                app.add_systems(PostUpdate, set_camera_viewport.after(show_ui_system));
+                app.add_systems(Update, handle_picking_clicks);
+            }
+        }
 
         // Type registrations for reflection
         app.register_type::<Option<Handle<Image>>>()

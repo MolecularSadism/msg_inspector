@@ -176,7 +176,8 @@ pub fn initialize_ui_state(mut commands: Commands, mut registry: ResMut<Inspecto
 
     let mut ui_state = UiState::new();
 
-    // Build default layout with built-in tabs and custom tabs
+    // Both modes use the same layout — in TwoWindow mode the GameView tab acts
+    // as the "frame" that the game window snaps into.
     ui_state.build_default_layout(num_custom_tabs);
 
     // Store the custom tabs in UiState for rendering

@@ -1,13 +1,15 @@
 //! Camera viewport management for the inspector.
 
 use bevy::{
-    camera::Viewport,
+    camera::{RenderTarget, Viewport},
     prelude::*,
-    window::{PrimaryWindow, Window},
+    window::{PrimaryWindow, Window, WindowRef},
 };
 use bevy_egui::{EguiContextSettings, PrimaryEguiContext};
 
+use crate::panel::GameWindow;
 use crate::state::{GameViewportRect, InspectorEnabled, UiState};
+use crate::GameWindowEntity;
 
 /// Marker component for the main game camera.
 ///
@@ -112,4 +114,80 @@ pub fn egui_pointer_over_area(
 
     // Cursor is outside viewport (over egui panels) → block game input
     true
+}
+
+/// System that routes `InspectorMainCamera` cameras to render into the game window.
+///
+/// In TwoWindow mode, game cameras render to the separate game window at full resolution
+/// with no viewport clipping. `RenderTarget` is a separate component in Bevy 0.18.
+#[allow(clippy::needless_pass_by_value, clippy::type_complexity)]
+pub fn route_cameras_to_game_window(
+    game_window: Res<GameWindowEntity>,
+    mut cameras: Query<
+        (&mut Camera, &mut RenderTarget),
+        (With<InspectorMainCamera>, Without<PrimaryEguiContext>),
+    >,
+) {
+    for (mut cam, mut render_target) in &mut cameras {
+        let already_set = matches!(
+            &*render_target,
+            RenderTarget::Window(WindowRef::Entity(e)) if *e == game_window.0
+        );
+        if !already_set {
+            *render_target = RenderTarget::Window(WindowRef::Entity(game_window.0));
+        }
+        if cam.viewport.is_some() {
+            cam.viewport = None;
+        }
+    }
+}
+
+/// System that positions the game window exactly over the GameView tab area.
+///
+/// Reads the viewport rect captured by the GameView tab, converts to screen
+/// coordinates relative to the inspector window, and moves/resizes the game
+/// window to overlay that area.
+#[allow(clippy::cast_possible_truncation)]
+pub fn sync_game_window_position(
+    ui_state: Res<UiState>,
+    inspector_window: Single<&Window, With<PrimaryWindow>>,
+    mut game_window: Single<&mut Window, With<GameWindow>>,
+    enabled: Res<InspectorEnabled>,
+) {
+    if !enabled.0 {
+        if game_window.visible {
+            game_window.visible = false;
+        }
+        return;
+    }
+
+    let viewport = ui_state.viewport_rect;
+    if viewport == bevy_egui::egui::Rect::NOTHING || viewport.width() <= 0.0 || viewport.height() <= 0.0 {
+        return;
+    }
+
+    let scale = inspector_window.scale_factor();
+
+    // Get inspector window's screen position (Bevy updates this when the window moves)
+    let inspector_pos = match inspector_window.position {
+        WindowPosition::At(pos) => pos,
+        _ => return, // Position not yet known from OS
+    };
+
+    // viewport_rect is in egui logical coordinates relative to the inspector window.
+    // Convert to screen coordinates for the game window position.
+    let game_x = inspector_pos.x + (viewport.min.x * scale) as i32;
+    let game_y = inspector_pos.y + (viewport.min.y * scale) as i32;
+    let game_w = viewport.width() * scale;
+    let game_h = viewport.height() * scale;
+
+    if game_w < 1.0 || game_h < 1.0 {
+        return;
+    }
+
+    game_window.position = WindowPosition::At(IVec2::new(game_x, game_y));
+    game_window.resolution.set(game_w, game_h);
+    if !game_window.visible {
+        game_window.visible = true;
+    }
 }
