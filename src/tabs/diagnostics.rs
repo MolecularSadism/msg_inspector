@@ -132,67 +132,93 @@ pub fn update_frame_time_history(time: Res<Time>, mut history: ResMut<FrameTimeH
     history.update(time.elapsed_secs_f64(), time.delta_secs());
 }
 
+/// Render a styled section header with separator.
+fn section_header(ui: &mut egui::Ui, text: &str) {
+    ui.add_space(2.0);
+    ui.label(egui::RichText::new(text).strong().size(14.0));
+    ui.separator();
+    ui.add_space(2.0);
+}
+
 /// Render the diagnostics tab.
 pub fn render(ui: &mut egui::Ui, world: &World) {
-    ui.heading("Performance");
-    ui.separator();
+    section_header(ui, "▶ Performance");
 
-    // Retrieve 1-second averages and maxima (updated by the frame_time_history_system)
     let (avg_fps, max_fps, avg_frame_time, max_frame_time) = world
         .get_resource::<FrameTimeHistory>()
         .map(|h| (h.avg_fps, h.min_fps, h.avg_frame_time, h.max_frame_time))
         .unwrap_or((0.0, 0.0, 0.0, 0.0));
 
-    // Performance metrics in a grid
-    ui.columns(2, |columns| {
-        columns[0].label("FPS (Min):");
-        columns[1].colored_label(
-            if avg_fps >= 60.0 {
-                egui::Color32::GREEN
-            } else if avg_fps >= 30.0 {
-                egui::Color32::YELLOW
-            } else {
-                egui::Color32::RED
-            },
-            format!("{avg_fps:.1} Hz ({max_fps:.1} Hz)"),
-        );
+    let fps_color = if avg_fps >= 60.0 {
+        egui::Color32::GREEN
+    } else if avg_fps >= 30.0 {
+        egui::Color32::YELLOW
+    } else {
+        egui::Color32::RED
+    };
 
-        columns[0].label("Frame Time (Max):");
-        columns[1].colored_label(
-            if avg_frame_time <= 16.7 {
-                egui::Color32::GREEN
-            } else if avg_frame_time <= 33.3 {
-                egui::Color32::YELLOW
-            } else {
-                egui::Color32::RED
-            },
-            format!("{avg_frame_time:.1} ms ({max_frame_time:.1} ms)"),
-        );
-    });
+    let frame_color = if avg_frame_time <= 16.7 {
+        egui::Color32::GREEN
+    } else if avg_frame_time <= 33.3 {
+        egui::Color32::YELLOW
+    } else {
+        egui::Color32::RED
+    };
 
-    ui.add_space(10.0);
-    ui.heading("Entities");
-    ui.separator();
+    egui::Grid::new("perf_grid")
+        .num_columns(2)
+        .spacing([12.0, 4.0])
+        .show(ui, |ui| {
+            ui.label(egui::RichText::new("FPS (Min):").weak());
+            ui.label(
+                egui::RichText::new(format!("{avg_fps:.1} Hz ({max_fps:.1} Hz)"))
+                    .color(fps_color)
+                    .strong(),
+            );
+            ui.end_row();
 
-    // Total entity count (always shown)
+            ui.label(egui::RichText::new("Frame Time (Max):").weak());
+            ui.label(
+                egui::RichText::new(format!("{avg_frame_time:.1} ms ({max_frame_time:.1} ms)"))
+                    .color(frame_color)
+                    .strong(),
+            );
+            ui.end_row();
+        });
+
+    ui.add_space(8.0);
+    section_header(ui, "● Entities");
+
     let total_entities = world.entities().len();
 
-    ui.columns(2, |columns| {
-        columns[0].label("Total Entities:");
-        columns[1].label(format!("{total_entities}"));
-    });
+    egui::Grid::new("entity_grid")
+        .num_columns(2)
+        .spacing([12.0, 4.0])
+        .show(ui, |ui| {
+            ui.label(egui::RichText::new("Total Entities:").weak());
+            ui.label(egui::RichText::new(format!("{total_entities}")).strong());
+            ui.end_row();
+        });
 
     // User-registered counters
-    if let Some(counters) = world.get_resource::<DiagnosticsCounters>() {
-        if !counters.counters.is_empty() {
-            ui.columns(2, |columns| {
+    if let Some(counters) = world.get_resource::<DiagnosticsCounters>()
+        && !counters.counters.is_empty()
+    {
+        ui.add_space(8.0);
+        section_header(ui, "■ Counters");
+
+        egui::Grid::new("counter_grid")
+            .num_columns(2)
+            .spacing([12.0, 4.0])
+            .striped(true)
+            .show(ui, |ui| {
                 for entry in &counters.counters {
                     let count = (entry.count_fn)(world);
-                    columns[0].label(format!("{}:", entry.label));
-                    columns[1].label(format!("{count}"));
+                    ui.label(egui::RichText::new(format!("{}:", entry.label)).weak());
+                    ui.label(egui::RichText::new(format!("{count}")).strong());
+                    ui.end_row();
                 }
             });
-        }
     }
 }
 

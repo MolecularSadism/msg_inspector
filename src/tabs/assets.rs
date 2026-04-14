@@ -28,24 +28,39 @@ pub fn render(
         .collect();
     assets.sort_by(|(name_a, ..), (name_b, ..)| name_a.cmp(name_b));
 
-    for (asset_name, asset_type_id, reflect_asset) in assets {
-        let handles: Vec<_> = reflect_asset.ids(world).collect();
-
-        ui.collapsing(format!("{asset_name} ({})", handles.len()), |ui| {
-            for handle in handles {
-                let selected = match *selection {
-                    InspectorSelection::Asset(_, _, selected_id) => selected_id == handle,
-                    _ => false,
-                };
-
-                if ui
-                    .selectable_label(selected, format!("{handle:?}"))
-                    .clicked()
-                {
-                    *selection =
-                        InspectorSelection::Asset(asset_type_id, asset_name.to_string(), handle);
-                }
-            }
+    if assets.is_empty() {
+        ui.add_space(20.0);
+        ui.vertical_centered(|ui| {
+            ui.label(egui::RichText::new("◇").size(24.0).weak());
+            ui.add_space(4.0);
+            ui.label(egui::RichText::new("No assets loaded").weak());
         });
+        return;
     }
+
+    egui::ScrollArea::vertical().show(ui, |ui| {
+        for (asset_name, asset_type_id, reflect_asset) in assets {
+            let handles: Vec<_> = reflect_asset.ids(world).collect();
+
+            ui.collapsing(format!("{asset_name} ({})", handles.len()), |ui| {
+                for handle in handles {
+                    let selected = match *selection {
+                        InspectorSelection::Asset(_, _, selected_id) => selected_id == handle,
+                        _ => false,
+                    };
+
+                    if ui
+                        .selectable_label(selected, format!("{handle:?}"))
+                        .clicked()
+                    {
+                        *selection = InspectorSelection::Asset(
+                            asset_type_id,
+                            asset_name.to_string(),
+                            handle,
+                        );
+                    }
+                }
+            });
+        }
+    });
 }

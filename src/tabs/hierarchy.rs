@@ -18,14 +18,7 @@ pub fn render(
     selection: &mut InspectorSelection,
     hierarchy_search: &mut String,
 ) {
-    // Search input
-    ui.horizontal(|ui| {
-        ui.label("Search:");
-        ui.text_edit_singleline(hierarchy_search);
-        if ui.small_button("X").clicked() {
-            hierarchy_search.clear();
-        }
-    });
+    super::search_bar(ui, "Search entities...", hierarchy_search);
     ui.separator();
 
     let search_query = hierarchy_search.trim();
@@ -96,8 +89,16 @@ fn render_filtered_hierarchy(
         });
 
         // Display results
-        ui.label(format!("{} results", matching_entities.len()));
+        ui.label(egui::RichText::new(format!("{} results", matching_entities.len())).weak().small());
         ui.add_space(4.0);
+
+        if matching_entities.is_empty() {
+            ui.add_space(12.0);
+            ui.vertical_centered(|ui| {
+                ui.label(egui::RichText::new("No matching entities").weak());
+            });
+            return;
+        }
 
         for (entity, display_name, depth, _) in matching_entities {
             let is_selected = selected_entities.contains(entity);

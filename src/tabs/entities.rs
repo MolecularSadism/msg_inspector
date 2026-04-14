@@ -249,14 +249,24 @@ pub fn render(
     });
 
     if groups.is_empty() && standalones.is_empty() {
-        ui.label("No principal components registered.");
-        ui.label("Use app.register_principal::<C>() to register components.");
+        ui.add_space(20.0);
+        ui.vertical_centered(|ui| {
+            ui.label(egui::RichText::new("●").size(24.0).weak());
+            ui.add_space(4.0);
+            ui.label(egui::RichText::new("No principal components registered.").weak());
+            ui.add_space(2.0);
+            ui.label(
+                egui::RichText::new("Use app.register_principal::<C>() to register.")
+                    .weak()
+                    .small(),
+            );
+        });
         return;
     }
 
     // --- Category selector (dropdown) ---
     ui.horizontal(|ui| {
-        ui.label("Category:");
+        ui.label(egui::RichText::new("Category:").weak());
         let current_label = match &tab_state.active_category {
             ActiveCategory::All => "All",
             ActiveCategory::Group(idx) => {
@@ -310,19 +320,14 @@ pub fn render(
                 }
             });
 
-        if tab_state.active_category != ActiveCategory::All && ui.small_button("X").clicked() {
+        if tab_state.active_category != ActiveCategory::All
+            && ui.small_button("X").on_hover_text("Show all").clicked()
+        {
             tab_state.active_category = ActiveCategory::All;
         }
     });
 
-    // --- Fuzzy search ---
-    ui.horizontal(|ui| {
-        ui.label("Search:");
-        ui.text_edit_singleline(&mut tab_state.search);
-        if ui.small_button("X").clicked() {
-            tab_state.search.clear();
-        }
-    });
+    super::search_bar(ui, "Search entities...", &mut tab_state.search);
 
     ui.separator();
 
@@ -455,7 +460,8 @@ fn render_principal_section(
     }
     collapsing.show(ui, |ui| {
         if entities.is_empty() {
-            ui.weak("No matching entities");
+            ui.add_space(4.0);
+            ui.weak("  No matching entities");
         } else {
             render_entity_list(ui, &entities, selected_entities, selection);
         }
@@ -482,7 +488,8 @@ fn render_uncategorized_section(
     }
     collapsing.show(ui, |ui| {
         if entities.is_empty() {
-            ui.weak("No matching entities");
+            ui.add_space(4.0);
+            ui.weak("  No matching entities");
         } else {
             render_entity_list(ui, &entities, selected_entities, selection);
         }
@@ -574,9 +581,10 @@ fn render_entity_list(
     selected_entities: &mut SelectedEntities,
     selection: &mut InspectorSelection,
 ) {
+    ui.spacing_mut().item_spacing.y = 1.0;
     for (entity, display_name, _) in entities {
         let is_selected = selected_entities.contains(*entity);
-        let label = format!("{display_name} ({entity:?})");
+        let label = format!("{display_name}  ({entity:?})");
 
         if ui.selectable_label(is_selected, label).clicked() {
             let modifiers = ui.input(|i| i.modifiers);

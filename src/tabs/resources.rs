@@ -16,14 +16,7 @@ pub fn render(
     selection: &mut InspectorSelection,
     resources_search: &mut String,
 ) {
-    // Search input
-    ui.horizontal(|ui| {
-        ui.label("Search:");
-        ui.text_edit_singleline(resources_search);
-        if ui.small_button("X").clicked() {
-            resources_search.clear();
-        }
-    });
+    super::search_bar(ui, "Search resources...", resources_search);
     ui.separator();
 
     let search_query = resources_search.trim();
@@ -46,6 +39,18 @@ pub fn render(
         resources.sort_by(|(name_a, _, _), (name_b, _, _)| name_a.cmp(name_b));
     } else {
         resources.sort_by(|(_, _, a), (_, _, b)| b.cmp(a));
+    }
+
+    if resources.is_empty() {
+        ui.add_space(12.0);
+        ui.vertical_centered(|ui| {
+            if search_query.is_empty() {
+                ui.label(egui::RichText::new("No registered resources").weak());
+            } else {
+                ui.label(egui::RichText::new("No matching resources").weak());
+            }
+        });
+        return;
     }
 
     egui::ScrollArea::vertical().show(ui, |ui| {
