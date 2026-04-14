@@ -187,39 +187,37 @@ pub fn render(ui: &mut egui::Ui, world: &World) {
         });
 
     ui.add_space(8.0);
-    section_header(ui, "● Entities");
+    section_header(ui, "■ Spawned");
 
     let total_entities = world.entities().len();
 
-    egui::Grid::new("entity_grid")
+    // Pre-collect counter rows to avoid holding a borrow on world inside the grid closure.
+    let counter_rows: Vec<(String, usize)> = world
+        .get_resource::<DiagnosticsCounters>()
+        .map(|counters| {
+            counters
+                .counters
+                .iter()
+                .map(|entry| (entry.label.clone(), (entry.count_fn)(world)))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    egui::Grid::new("spawned_grid")
         .num_columns(2)
         .spacing([12.0, 4.0])
+        .striped(true)
         .show(ui, |ui| {
-            ui.label(egui::RichText::new("Total Entities:").weak());
+            ui.label(egui::RichText::new("Total:").weak());
             ui.label(egui::RichText::new(format!("{total_entities}")).strong());
             ui.end_row();
+
+            for (label, count) in &counter_rows {
+                ui.label(egui::RichText::new(format!("{label}:")).weak());
+                ui.label(egui::RichText::new(format!("{count}")).strong());
+                ui.end_row();
+            }
         });
-
-    // User-registered counters
-    if let Some(counters) = world.get_resource::<DiagnosticsCounters>()
-        && !counters.counters.is_empty()
-    {
-        ui.add_space(8.0);
-        section_header(ui, "■ Counters");
-
-        egui::Grid::new("counter_grid")
-            .num_columns(2)
-            .spacing([12.0, 4.0])
-            .striped(true)
-            .show(ui, |ui| {
-                for entry in &counters.counters {
-                    let count = (entry.count_fn)(world);
-                    ui.label(egui::RichText::new(format!("{}:", entry.label)).weak());
-                    ui.label(egui::RichText::new(format!("{count}")).strong());
-                    ui.end_row();
-                }
-            });
-    }
 }
 
 #[cfg(test)]
