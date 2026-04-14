@@ -14,6 +14,7 @@
 
 pub use crate::{
     InspectorPlugin,
+    hud::{Hud, HudPlugin, WandInventory, WandSlotAtlas},
     picking::CrosshairConfig,
     state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState},
     tabs::{
