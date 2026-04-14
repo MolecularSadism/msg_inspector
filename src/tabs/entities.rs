@@ -8,6 +8,7 @@
 //! Entities without any principal component appear under "Uncategorized".
 
 use std::any::TypeId;
+use std::collections::HashSet;
 
 use bevy::ecs::component::ComponentId;
 use bevy::ecs::world::EntityRef;
@@ -82,6 +83,15 @@ impl PrincipalRegistry {
     pub fn set_last_name(&mut self, name: String) {
         if let Some(last) = self.deferred.last_mut() {
             last.label = name;
+        }
+    }
+
+    /// Assign the most recently queued principal to a named group.
+    ///
+    /// This is the backing method for [`InspectorExt::with_group`].
+    pub fn set_last_group(&mut self, group: String) {
+        if let Some(last) = self.deferred.last_mut() {
+            last.group = Some(group);
         }
     }
 
@@ -421,8 +431,12 @@ fn render_group_section(
     search_query: &str,
     always_open: bool,
 ) {
+    let member_ids: Vec<ComponentId> = group.members.iter().map(|m| m.component_id).collect();
+    let total = count_group_entities(world, &member_ids, search_query);
+    let header = format!("{} ({})", group.name, total);
+
     let mut collapsing =
-        egui::CollapsingHeader::new(&group.name).id_salt(format!("group_{}", group.name));
+        egui::CollapsingHeader::new(header).id_salt(format!("group_{}", group.name));
     if always_open {
         collapsing = collapsing.default_open(true);
     }
@@ -494,6 +508,30 @@ fn render_uncategorized_section(
             render_entity_list(ui, &entities, selected_entities, selection);
         }
     });
+}
+
+/// Count unique entities that have *any* of the given component IDs, respecting the search filter.
+fn count_group_entities(
+    world: &mut World,
+    component_ids: &[ComponentId],
+    search_query: &str,
+) -> usize {
+    let mut seen: HashSet<Entity> = HashSet::new();
+    let mut q = world.query::<EntityRef>();
+    for entity_ref in q.iter(world) {
+        if !component_ids.iter().any(|id| entity_ref.contains_id(*id)) {
+            continue;
+        }
+        if search_query.is_empty() {
+            seen.insert(entity_ref.id());
+        } else {
+            let display_name = entity_display_name(&entity_ref);
+            if best_match(search_query, &display_name).is_some() {
+                seen.insert(entity_ref.id());
+            }
+        }
+    }
+    seen.len()
 }
 
 /// Collect all entities that have a given component, optionally filtered by fuzzy search.

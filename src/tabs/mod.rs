@@ -200,6 +200,32 @@ pub trait InspectorExt {
     /// ```
     fn with_name(&mut self, name: impl Into<String>) -> &mut Self;
 
+    /// Assign the most recently registered principal to a named group.
+    ///
+    /// Chain this immediately after [`register_principal`](Self::register_principal)
+    /// to place the principal inside a collapsible group category in the Entities tab.
+    /// Can be combined with [`with_name`](Self::with_name).
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// use msg_inspector::prelude::*;
+    ///
+    /// #[derive(Component)]
+    /// struct Enemy;
+    ///
+    /// #[derive(Component)]
+    /// struct Npc;
+    ///
+    /// fn plugin(app: &mut App) {
+    ///     app.add_plugins(InspectorPlugin::default());
+    ///     app.register_principal::<Enemy>().with_group("Characters")
+    ///        .register_principal::<Npc>().with_name("NPC").with_group("Characters");
+    /// }
+    /// ```
+    fn with_group(&mut self, group: &str) -> &mut Self;
+
     /// Register a group of principal components under a shared parent category.
     ///
     /// The group appears as a collapsible parent in the Entities tab, with each
@@ -329,6 +355,13 @@ impl InspectorExt for App {
         self.world_mut()
             .resource_mut::<PrincipalRegistry>()
             .set_last_name(name.into());
+        self
+    }
+
+    fn with_group(&mut self, group: &str) -> &mut Self {
+        self.world_mut()
+            .resource_mut::<PrincipalRegistry>()
+            .set_last_group(group.to_owned());
         self
     }
 
