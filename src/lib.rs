@@ -121,7 +121,8 @@ pub use picking::{CrosshairConfig, handle_picking_clicks, update_picked_entity_m
 pub use state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState};
 pub use tabs::{
     ActiveCategory, BuiltinTab, DiagnosticsCounters, DockPosition, FrameTimeHistory,
-    InspectorExt, InspectorTab, InspectorTabRegistry, PrincipalRegistry, PrincipalTuple, Tab,
+    InspectorExt, InspectorSection, InspectorSectionRegistry, InspectorTab, InspectorTabRegistry,
+    PrincipalRegistry, PrincipalTuple, Tab, transform_section_ui,
 };
 pub use viewport::{InspectorMainCamera, egui_pointer_over_area, set_camera_viewport};
 
@@ -241,8 +242,12 @@ impl Plugin for InspectorPlugin {
             .init_resource::<GameViewportRect>()
             .init_resource::<InspectorTabRegistry>()
             .init_resource::<PrincipalRegistry>()
+            .init_resource::<InspectorSectionRegistry>()
             .init_resource::<picking::CrosshairConfig>()
             .init_resource::<tabs::FrameTimeHistory>();
+
+        // Built-in inspector sections
+        app.register_inspector_section::<Transform>("Transform", transform_section_ui);
 
         // Initialize UiState after tab registry so built-in tabs can be set up
         app.add_systems(Startup, state::initialize_ui_state);

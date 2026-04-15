@@ -10,6 +10,9 @@ mod resources;
 
 pub use diagnostics::{DiagnosticsCounters, FrameTimeHistory, update_frame_time_history};
 pub use entities::{ActiveCategory, EntitiesTabState, PrincipalRegistry, PrincipalTuple};
+pub use inspector::{InspectorSection, InspectorSectionRegistry, transform_section_ui};
+
+use std::any::TypeId;
 
 use bevy::prelude::*;
 use bevy_egui::egui;
@@ -341,6 +344,33 @@ pub trait InspectorExt {
     where
         F: FnMut(&mut egui::Ui, &mut World) + Send + Sync + 'static;
 
+    /// Register a custom inspector section coupled to a marker component.
+    ///
+    /// The section only renders in the Inspector tab when the selected entity
+    /// has component `C`. Sections appear between the entity name and the
+    /// default component inspector view.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// use msg_inspector::prelude::*;
+    /// use msg_inspector::egui;
+    ///
+    /// fn my_section(ui: &mut egui::Ui, world: &mut World, entity: Entity) {
+    ///     ui.label("Custom section content");
+    /// }
+    ///
+    /// fn plugin(app: &mut App) {
+    ///     app.add_plugins(InspectorPlugin::default());
+    ///     app.register_inspector_section::<Transform>("Transform", my_section);
+    /// }
+    /// ```
+    fn register_inspector_section<C: Component>(
+        &mut self,
+        title: &str,
+        render_fn: impl Fn(&mut egui::Ui, &mut World, Entity) + Send + Sync + 'static,
+    ) -> &mut Self;
 }
 
 impl InspectorExt for App {
@@ -439,6 +469,21 @@ impl InspectorExt for App {
         })
     }
 
+    fn register_inspector_section<C: Component>(
+        &mut self,
+        title: &str,
+        render_fn: impl Fn(&mut egui::Ui, &mut World, Entity) + Send + Sync + 'static,
+    ) -> &mut Self {
+        self.world_mut()
+            .resource_mut::<InspectorSectionRegistry>()
+            .sections
+            .push(InspectorSection {
+                marker_type_id: TypeId::of::<C>(),
+                title: title.to_string(),
+                render_fn: Box::new(render_fn),
+            });
+        self
+    }
 }
 
 /// Wrapper for read-only analytics tabs using closures.
@@ -659,5 +704,9 @@ impl egui_dock::TabViewer for TabViewer<'_> {
 
     fn clear_background(&self, window: &Self::Tab) -> bool {
         !matches!(window, Tab::Builtin(BuiltinTab::GameView))
+    }
+
+    fn closeable(&mut self, _tab: &mut Self::Tab) -> bool {
+        false
     }
 }

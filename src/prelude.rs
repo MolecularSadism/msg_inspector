@@ -18,7 +18,8 @@ pub use crate::{
     state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState},
     tabs::{
         ActiveCategory, BuiltinTab, DiagnosticsCounters, DockPosition, InspectorExt,
-        InspectorTab, InspectorTabRegistry, PrincipalRegistry, PrincipalTuple, Tab,
+        InspectorSectionRegistry, InspectorTab, InspectorTabRegistry, PrincipalRegistry,
+        PrincipalTuple, Tab,
     },
     viewport::{InspectorMainCamera, egui_pointer_over_area},
 };
