@@ -6,7 +6,6 @@
 //!
 //! This prelude includes:
 //! - [`InspectorPlugin`] - The main plugin to add to your app
-//! - [`InspectorMainCamera`] - Marker component for viewport management
 //! - [`InspectorExt`] - Extension trait for registering custom tabs
 //! - [`InspectorTab`] - Trait for implementing custom tabs
 //! - [`CrosshairConfig`] - Configuration for entity selection crosshair
@@ -21,5 +20,5 @@ pub use crate::{
         InspectorSectionRegistry, InspectorTab, InspectorTabRegistry, PrincipalRegistry,
         PrincipalTuple, Tab,
     },
-    viewport::{InspectorMainCamera, egui_pointer_over_area},
+    viewport::egui_pointer_over_area,
 };

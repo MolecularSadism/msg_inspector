@@ -53,11 +53,9 @@ fn main() {
 }
 
 fn setup(mut commands: Commands) {
-    // Mark your main camera for viewport management
-    commands.spawn((
-        Camera2d,
-        InspectorMainCamera,
-    ));
+    // The inspector automatically discovers cameras rendering to the primary
+    // window — no tagging required.
+    commands.spawn(Camera2d);
 }
 ```
 

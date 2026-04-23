@@ -1,77 +1,125 @@
 //! Camera viewport management for the inspector.
+//!
+//! The inspector automatically discovers cameras rendering to the primary
+//! window and clips their viewport to the GameView dock area while the
+//! inspector panel is visible. Games do not need to tag their cameras or
+//! otherwise cooperate with the inspector: the original viewport is captured
+//! on a private component and restored when the inspector is toggled off.
 
 use bevy::{
-    camera::Viewport,
+    camera::{RenderTarget, Viewport},
     prelude::*,
-    window::{PrimaryWindow, Window},
+    window::{PrimaryWindow, Window, WindowRef},
 };
 use bevy_egui::{EguiContextSettings, PrimaryEguiContext};
 
 use crate::state::{GameViewportRect, InspectorEnabled, UiState};
 
-/// Marker component for the main game camera.
-///
-/// Games should add this component to their primary camera for viewport management.
-#[derive(Component)]
-pub struct InspectorMainCamera;
-
 const MIN_WINDOW_SIZE: u32 = 16;
 
+/// Tracks a camera whose viewport is currently being managed by the inspector.
+///
+/// Holds the viewport the camera had before the inspector took over so the
+/// original setting can be restored when the panel is toggled off. Exposed
+/// only because it appears in the signature of the public
+/// [`set_camera_viewport`] system; it is not part of the stable API.
+#[doc(hidden)]
+#[derive(Component)]
+pub struct ManagedByInspector {
+    original_viewport: Option<Viewport>,
+}
+
+/// Cameras rendering to the primary window are the ones whose visible area
+/// overlaps the inspector dock. Cameras targeting images (e.g. minimap or
+/// effect textures) render off-screen and are left untouched. A camera with
+/// no explicit `RenderTarget` component also defaults to the primary window.
+fn targets_primary_window(render_target: Option<&RenderTarget>) -> bool {
+    matches!(
+        render_target,
+        None | Some(RenderTarget::Window(WindowRef::Primary))
+    )
+}
+
+type ManagedCameraQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static mut Camera,
+        Option<&'static RenderTarget>,
+        Option<&'static ManagedByInspector>,
+    ),
+    Without<PrimaryEguiContext>,
+>;
+
 /// System that adjusts the camera viewport to not overlap with egui panels.
+///
+/// Discovers game cameras at runtime: every camera targeting the primary
+/// window (except the egui context's own camera) is clipped to the GameView
+/// rect while the inspector is enabled, and restored when it is disabled.
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn set_camera_viewport(
     ui_state: Res<UiState>,
     enabled: Res<InspectorEnabled>,
     window: Single<&Window, With<PrimaryWindow>>,
-    mut cameras: Query<&mut Camera, (With<InspectorMainCamera>, Without<PrimaryEguiContext>)>,
+    mut cameras: ManagedCameraQuery,
     mut egui_settings: Single<&mut EguiContextSettings, With<PrimaryEguiContext>>,
+    mut commands: Commands,
 ) {
     egui_settings.capture_pointer_input = true;
 
+    // When the inspector is off, hand every camera back its original viewport
+    // and stop tracking it. From this point on we leave `camera.viewport`
+    // entirely to the game.
+    if !enabled.0 {
+        for (entity, mut camera, _target, managed) in &mut cameras {
+            let Some(managed) = managed else { continue };
+            camera.viewport = managed.original_viewport.clone();
+            commands.entity(entity).remove::<ManagedByInspector>();
+        }
+        return;
+    }
+
     let scale_factor = window.scale_factor() * egui_settings.scale_factor;
 
-    let (viewport_pos, viewport_size) = if enabled.0 {
-        let viewport_pos = {
-            let egui_pos = ui_state.viewport_rect.left_top().to_vec2() * scale_factor;
-            Vec2::new(egui_pos.x, egui_pos.y)
-        };
-        let viewport_size = {
-            let egui_size = ui_state.viewport_rect.size() * scale_factor;
-            Vec2::new(egui_size.x, egui_size.y)
-        };
-        (viewport_pos, viewport_size)
-    } else {
-        (Vec2::ZERO, window.physical_size().as_vec2())
-    };
-
-    let physical_position = UVec2::new(viewport_pos.x as u32, viewport_pos.y as u32);
-    let physical_size = UVec2::new(viewport_size.x as u32, viewport_size.y as u32);
-
-    let rect = physical_position + physical_size;
+    let egui_pos = ui_state.viewport_rect.left_top().to_vec2() * scale_factor;
+    let egui_size = ui_state.viewport_rect.size() * scale_factor;
+    let physical_position = UVec2::new(egui_pos.x as u32, egui_pos.y as u32);
+    let physical_size = UVec2::new(egui_size.x as u32, egui_size.y as u32);
+    let rect_end = physical_position + physical_size;
 
     let window_size = window.physical_size();
-    // wgpu will panic if trying to set a viewport rect which has coordinates extending
-    // past the size of the render target, i.e. the physical window in our case.
-    // Also prevent rendering when the window is minimized (size becomes very small).
-    if rect.x <= window_size.x
-        && rect.y <= window_size.y
+    // wgpu will panic if trying to set a viewport rect which has coordinates
+    // extending past the size of the render target, i.e. the physical window
+    // in our case. Also skip when the window is minimized (size very small).
+    let clip = if rect_end.x <= window_size.x
+        && rect_end.y <= window_size.y
         && window_size.x >= MIN_WINDOW_SIZE
         && window_size.y >= MIN_WINDOW_SIZE
         && physical_size.x > 0
         && physical_size.y > 0
     {
-        for mut cam in &mut cameras {
-            cam.viewport = Some(Viewport {
-                physical_position,
-                physical_size,
-                depth: 0.0..1.0,
+        Some(Viewport {
+            physical_position,
+            physical_size,
+            depth: 0.0..1.0,
+        })
+    } else {
+        None
+    };
+
+    for (entity, mut camera, target, managed) in &mut cameras {
+        if !targets_primary_window(target) {
+            continue;
+        }
+
+        if managed.is_none() {
+            commands.entity(entity).insert(ManagedByInspector {
+                original_viewport: camera.viewport.clone(),
             });
         }
-    } else {
-        // Clear viewport when window is minimized to prevent scissor rect validation errors
-        for mut cam in &mut cameras {
-            cam.viewport = None;
-        }
+
+        camera.viewport = clip.clone();
     }
 }
 

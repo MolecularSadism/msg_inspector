@@ -28,15 +28,17 @@
 //!
 //! ## Quick Start
 //!
+//! The inspector automatically discovers any camera rendering to the primary
+//! window — games just spawn their cameras as usual.
+//!
 //! ```
 //! use bevy::prelude::*;
 //! use msg_inspector::prelude::*;
 //!
 //! fn setup(mut commands: Commands) {
-//!     // Mark your main camera for viewport management
-//!     commands.spawn((Camera2d, InspectorMainCamera));
+//!     commands.spawn(Camera2d);
 //! }
-//! 
+//!
 //! fn plugin(app: &mut App) {
 //!     app.add_plugins((DefaultPlugins, InspectorPlugin::default()));
 //!     app.register_inspector_interactive("cheats", "Cheats", |ui, world| {
@@ -124,7 +126,7 @@ pub use tabs::{
     InspectorExt, InspectorSection, InspectorSectionRegistry, InspectorTab, InspectorTabRegistry,
     PrincipalRegistry, PrincipalTuple, Tab, transform_section_ui,
 };
-pub use viewport::{InspectorMainCamera, egui_pointer_over_area, set_camera_viewport};
+pub use viewport::{egui_pointer_over_area, set_camera_viewport};
 
 // Re-export egui so consumers don't need to depend on bevy-inspector-egui directly
 pub use bevy_inspector_egui::egui;

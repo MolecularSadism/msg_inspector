@@ -38,8 +38,9 @@ struct Loot;
 // ---- Setup ---------------------------------------------------------------
 
 fn setup(mut commands: Commands) {
-    // Camera
-    commands.spawn((Camera2d, InspectorMainCamera));
+    // Camera — the inspector auto-discovers cameras rendering to the
+    // primary window, so no tagging is required.
+    commands.spawn(Camera2d);
 
     // Enemies
     for i in 0..5 {
