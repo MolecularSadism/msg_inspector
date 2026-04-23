@@ -38,8 +38,8 @@ struct Loot;
 // ---- Setup ---------------------------------------------------------------
 
 fn setup(mut commands: Commands) {
-    // Camera
-    commands.spawn((Camera2d, InspectorMainCamera));
+    // Camera — IsDefaultUiCamera is all the inspector needs to auto-target it.
+    commands.spawn((Camera2d, IsDefaultUiCamera));
 
     // Enemies
     for i in 0..5 {

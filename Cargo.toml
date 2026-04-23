@@ -1,6 +1,6 @@
 [package]
 name = "msg_inspector"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2024"
 description = "A generic, modular Bevy UI framework for development panels and inspectors"
 license = "MIT OR Apache-2.0"
@@ -17,6 +17,7 @@ bevy = { version = "0.18", default-features = false, features = [
     "bevy_winit",
     "bevy_gizmos",
     "bevy_pbr",
+    "bevy_ui",
 ] }
 bevy-inspector-egui = "0.36"
 bevy_egui = { version = "0.39.1" }
@@ -34,4 +35,5 @@ bevy = { version = "0.18", default-features = false, features = [
     "bevy_pbr",
     "bevy_state",
     "bevy_text",
+    "bevy_ui",
 ] }

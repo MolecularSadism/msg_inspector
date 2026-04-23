@@ -28,15 +28,19 @@
 //!
 //! ## Quick Start
 //!
+//! The inspector automatically targets any camera carrying
+//! [`bevy::ui::IsDefaultUiCamera`] — apps that already wire a default UI
+//! camera need no additional setup. Use [`InspectorMainCamera`] only as an
+//! opt-in override for exotic camera setups.
+//!
 //! ```
 //! use bevy::prelude::*;
 //! use msg_inspector::prelude::*;
 //!
 //! fn setup(mut commands: Commands) {
-//!     // Mark your main camera for viewport management
-//!     commands.spawn((Camera2d, InspectorMainCamera));
+//!     commands.spawn((Camera2d, IsDefaultUiCamera));
 //! }
-//! 
+//!
 //! fn plugin(app: &mut App) {
 //!     app.add_plugins((DefaultPlugins, InspectorPlugin::default()));
 //!     app.register_inspector_interactive("cheats", "Cheats", |ui, world| {
@@ -120,8 +124,8 @@ pub use panel::show_ui_system;
 pub use picking::{CrosshairConfig, handle_picking_clicks, update_picked_entity_marker};
 pub use state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState};
 pub use tabs::{
-    ActiveCategory, BuiltinTab, DiagnosticsCounters, DockPosition, FrameTimeHistory,
-    InspectorExt, InspectorSection, InspectorSectionRegistry, InspectorTab, InspectorTabRegistry,
+    ActiveCategory, BuiltinTab, DiagnosticsCounters, DockPosition, FrameTimeHistory, InspectorExt,
+    InspectorSection, InspectorSectionRegistry, InspectorTab, InspectorTabRegistry,
     PrincipalRegistry, PrincipalTuple, Tab, transform_section_ui,
 };
 pub use viewport::{InspectorMainCamera, egui_pointer_over_area, set_camera_viewport};

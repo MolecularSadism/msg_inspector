@@ -40,6 +40,10 @@ bevy = "0.18"
 
 ## Quick Start
 
+The inspector automatically clips the viewport of any camera carrying Bevy's
+`IsDefaultUiCamera` marker — most apps need no extra setup beyond adding the
+plugin.
+
 ```rust
 use bevy::prelude::*;
 use msg_inspector::prelude::*;
@@ -53,11 +57,23 @@ fn main() {
 }
 
 fn setup(mut commands: Commands) {
-    // Mark your main camera for viewport management
-    commands.spawn((
-        Camera2d,
-        InspectorMainCamera,
-    ));
+    commands.spawn((Camera2d, IsDefaultUiCamera));
+}
+```
+
+### Overriding the target camera
+
+If your app does not use `IsDefaultUiCamera`, or you want the inspector to
+clip a different camera, add the opt-in `InspectorMainCamera` marker. The
+inspector targets the union of `IsDefaultUiCamera` and `InspectorMainCamera`
+cameras.
+
+```rust
+use bevy::prelude::*;
+use msg_inspector::prelude::*;
+
+fn setup(mut commands: Commands) {
+    commands.spawn((Camera2d, InspectorMainCamera));
 }
 ```
 

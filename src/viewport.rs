@@ -3,15 +3,19 @@
 use bevy::{
     camera::Viewport,
     prelude::*,
+    ui::IsDefaultUiCamera,
     window::{PrimaryWindow, Window},
 };
 use bevy_egui::{EguiContextSettings, PrimaryEguiContext};
 
 use crate::state::{GameViewportRect, InspectorEnabled, UiState};
 
-/// Marker component for the main game camera.
+/// Opt-in override marker for the camera whose viewport the inspector should clip.
 ///
-/// Games should add this component to their primary camera for viewport management.
+/// By default, the inspector targets any camera carrying
+/// [`bevy::ui::IsDefaultUiCamera`]. Add this marker to force the inspector to
+/// target a specific camera instead (or in addition) — useful for apps that do
+/// not use `IsDefaultUiCamera` or that want to clip a non-UI camera.
 #[derive(Component)]
 pub struct InspectorMainCamera;
 
@@ -23,7 +27,13 @@ pub fn set_camera_viewport(
     ui_state: Res<UiState>,
     enabled: Res<InspectorEnabled>,
     window: Single<&Window, With<PrimaryWindow>>,
-    mut cameras: Query<&mut Camera, (With<InspectorMainCamera>, Without<PrimaryEguiContext>)>,
+    mut cameras: Query<
+        &mut Camera,
+        (
+            Or<(With<InspectorMainCamera>, With<IsDefaultUiCamera>)>,
+            Without<PrimaryEguiContext>,
+        ),
+    >,
     mut egui_settings: Single<&mut EguiContextSettings, With<PrimaryEguiContext>>,
 ) {
     egui_settings.capture_pointer_input = true;
