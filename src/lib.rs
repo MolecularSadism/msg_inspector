@@ -259,6 +259,7 @@ impl Plugin for InspectorPlugin {
                 show_ui_system,
             )
             .add_systems(PostUpdate, set_camera_viewport.after(show_ui_system))
+            .add_observer(viewport::auto_tag_inspector_camera)
             .add_systems(Update, panel::toggle_inspector)
             .add_systems(Update, handle_picking_clicks)
             .add_systems(Update, update_picked_entity_marker)

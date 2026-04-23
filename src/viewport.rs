@@ -1,7 +1,7 @@
 //! Camera viewport management for the inspector.
 
 use bevy::{
-    camera::Viewport,
+    camera::{RenderTarget, Viewport},
     prelude::*,
     window::{PrimaryWindow, Window},
 };
@@ -11,7 +11,8 @@ use crate::state::{GameViewportRect, InspectorEnabled, UiState};
 
 /// Marker component for the main game camera.
 ///
-/// Games should add this component to their primary camera for viewport management.
+/// Applied automatically by the inspector to cameras with order >= 0 that render
+/// to a window. Can also be inserted manually for custom camera setups.
 #[derive(Component)]
 pub struct InspectorMainCamera;
 
@@ -72,6 +73,24 @@ pub fn set_camera_viewport(
         for mut cam in &mut cameras {
             cam.viewport = None;
         }
+    }
+}
+
+/// Observer that automatically tags cameras for viewport management.
+///
+/// Inserts [`InspectorMainCamera`] on any camera that renders to a window
+/// with a non-negative order, so games need not reference inspector internals.
+pub fn auto_tag_inspector_camera(
+    trigger: On<Add, Camera>,
+    cameras: Query<&Camera, (Without<PrimaryEguiContext>, Without<RenderTarget>)>,
+    mut commands: Commands,
+) {
+    let entity = trigger.entity;
+    let Ok(camera) = cameras.get(entity) else {
+        return;
+    };
+    if camera.order >= 0 {
+        commands.entity(entity).insert(InspectorMainCamera);
     }
 }
 
