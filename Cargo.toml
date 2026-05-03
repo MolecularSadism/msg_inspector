@@ -8,6 +8,12 @@ repository = "https://github.com/MolecularSadism/msg_inspector"
 keywords = ["bevy", "inspector", "debug", "egui", "gamedev"]
 categories = ["game-development", "gui", "development-tools::debugging"]
 
+[features]
+default = []
+# Show every render diagnostic (per-pass shader/clipper invocations and
+# per-asset counters) in the GPU tab. Off by default to keep the panel concise.
+verbose-gpu-diagnostics = []
+
 [dependencies]
 bevy = { version = "0.18", default-features = false, features = [
     "bevy_core_pipeline",
