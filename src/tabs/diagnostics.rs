@@ -5,6 +5,7 @@
 use std::collections::VecDeque;
 
 use bevy::prelude::*;
+use bevy::render::renderer::RenderAdapterInfo;
 use bevy_egui::egui;
 
 /// Tracks frame times over the last 1 second to compute averages and maxima.
@@ -132,6 +133,84 @@ pub fn update_frame_time_history(time: Res<Time>, mut history: ResMut<FrameTimeH
     history.update(time.elapsed_secs_f64(), time.delta_secs());
 }
 
+/// Aggregated GPU/render stats sampled from the main world.
+struct GpuStats {
+    /// Entities with a renderable component (Mesh3d, Mesh2d, or Sprite).
+    drawables: usize,
+    /// Entities that are renderable AND currently passing visibility checks.
+    /// This is the closest main-world approximation of per-view draw calls.
+    draw_calls: usize,
+    meshes_3d: usize,
+    meshes_2d: usize,
+    sprites: usize,
+}
+
+fn count_with<C: Component>(world: &World) -> usize {
+    let Some(id) = world.components().get_id(std::any::TypeId::of::<C>()) else {
+        return 0;
+    };
+    world
+        .archetypes()
+        .iter()
+        .filter(|arch| arch.contains(id))
+        .map(|arch| arch.len() as usize)
+        .sum()
+}
+
+fn collect_gpu_stats(world: &World) -> GpuStats {
+    let meshes_3d = count_with::<Mesh3d>(world);
+    let meshes_2d = count_with::<Mesh2d>(world);
+    let sprites = count_with::<Sprite>(world);
+
+    let mesh3d_id = world.components().get_id(std::any::TypeId::of::<Mesh3d>());
+    let mesh2d_id = world.components().get_id(std::any::TypeId::of::<Mesh2d>());
+    let sprite_id = world.components().get_id(std::any::TypeId::of::<Sprite>());
+    let view_vis_id = world
+        .components()
+        .get_id(std::any::TypeId::of::<ViewVisibility>());
+
+    let is_drawable = |arch: &bevy::ecs::archetype::Archetype| {
+        mesh3d_id.is_some_and(|id| arch.contains(id))
+            || mesh2d_id.is_some_and(|id| arch.contains(id))
+            || sprite_id.is_some_and(|id| arch.contains(id))
+    };
+
+    let drawables: usize = world
+        .archetypes()
+        .iter()
+        .filter(|arch| is_drawable(arch))
+        .map(|arch| arch.len() as usize)
+        .sum();
+
+    let draw_calls = if let Some(view_vis_id) = view_vis_id {
+        let mut count = 0usize;
+        for arch in world.archetypes().iter() {
+            if !is_drawable(arch) || !arch.contains(view_vis_id) {
+                continue;
+            }
+            for entity in arch.entities() {
+                if let Ok(e) = world.get_entity(entity.id())
+                    && let Some(vis) = e.get::<ViewVisibility>()
+                    && vis.get()
+                {
+                    count += 1;
+                }
+            }
+        }
+        count
+    } else {
+        drawables
+    };
+
+    GpuStats {
+        drawables,
+        draw_calls,
+        meshes_3d,
+        meshes_2d,
+        sprites,
+    }
+}
+
 /// Render a styled section header with separator.
 fn section_header(ui: &mut egui::Ui, text: &str) {
     ui.add_space(2.0);
@@ -183,6 +262,68 @@ pub fn render(ui: &mut egui::Ui, world: &World) {
                     .color(frame_color)
                     .strong(),
             );
+            ui.end_row();
+        });
+
+    ui.add_space(8.0);
+    section_header(ui, "● GPU");
+
+    let stats = collect_gpu_stats(world);
+
+    egui::Grid::new("gpu_grid")
+        .num_columns(2)
+        .spacing([12.0, 4.0])
+        .striped(true)
+        .show(ui, |ui| {
+            if let Some(info) = world.get_resource::<RenderAdapterInfo>() {
+                ui.label(egui::RichText::new("Adapter:").weak());
+                ui.label(egui::RichText::new(&info.0.name).strong());
+                ui.end_row();
+
+                ui.label(egui::RichText::new("Backend:").weak());
+                ui.label(egui::RichText::new(format!("{:?}", info.0.backend)).strong());
+                ui.end_row();
+
+                ui.label(egui::RichText::new("Device Type:").weak());
+                ui.label(egui::RichText::new(format!("{:?}", info.0.device_type)).strong());
+                ui.end_row();
+
+                if !info.0.driver.is_empty() {
+                    ui.label(egui::RichText::new("Driver:").weak());
+                    let driver = if info.0.driver_info.is_empty() {
+                        info.0.driver.clone()
+                    } else {
+                        format!("{} ({})", info.0.driver, info.0.driver_info)
+                    };
+                    ui.label(egui::RichText::new(driver).strong());
+                    ui.end_row();
+                }
+            } else {
+                ui.label(egui::RichText::new("Adapter:").weak());
+                ui.label(egui::RichText::new("unavailable").italics());
+                ui.end_row();
+            }
+
+            ui.label(egui::RichText::new("Draw Calls (est):").weak());
+            ui.label(egui::RichText::new(format!("{}", stats.draw_calls)).strong());
+            ui.end_row();
+
+            ui.label(egui::RichText::new("Visible / Drawable:").weak());
+            ui.label(
+                egui::RichText::new(format!("{} / {}", stats.draw_calls, stats.drawables)).strong(),
+            );
+            ui.end_row();
+
+            ui.label(egui::RichText::new("3D Meshes:").weak());
+            ui.label(egui::RichText::new(format!("{}", stats.meshes_3d)).strong());
+            ui.end_row();
+
+            ui.label(egui::RichText::new("2D Meshes:").weak());
+            ui.label(egui::RichText::new(format!("{}", stats.meshes_2d)).strong());
+            ui.end_row();
+
+            ui.label(egui::RichText::new("Sprites:").weak());
+            ui.label(egui::RichText::new(format!("{}", stats.sprites)).strong());
             ui.end_row();
         });
 
