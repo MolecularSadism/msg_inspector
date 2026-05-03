@@ -112,7 +112,13 @@ mod viewport;
 
 use std::sync::Mutex;
 
-use bevy::{prelude::*, render::alpha::AlphaMode};
+use bevy::{
+    prelude::*,
+    render::{
+        alpha::AlphaMode,
+        diagnostic::{MeshAllocatorDiagnosticPlugin, RenderDiagnosticsPlugin},
+    },
+};
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
@@ -233,6 +239,17 @@ impl Plugin for InspectorPlugin {
         // Core plugins
         app.add_plugins(EguiPlugin::default())
             .add_plugins(DefaultInspectorConfigPlugin);
+
+        // Render diagnostics: per-pass CPU/GPU timings + pipeline statistics
+        // (vertex/fragment shader invocations, clipper primitives, etc.) and
+        // mesh allocator counters. Surfaced through Bevy's DiagnosticsStore
+        // and rendered in the GPU section of the diagnostics tab.
+        if !app.is_plugin_added::<RenderDiagnosticsPlugin>() {
+            app.add_plugins(RenderDiagnosticsPlugin);
+        }
+        if !app.is_plugin_added::<MeshAllocatorDiagnosticPlugin>() {
+            app.add_plugins(MeshAllocatorDiagnosticPlugin);
+        }
 
         // State management
         app.register_type::<InspectorEnabled>()

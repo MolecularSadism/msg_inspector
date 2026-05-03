@@ -4,6 +4,7 @@
 
 use std::collections::VecDeque;
 
+use bevy::diagnostic::DiagnosticsStore;
 use bevy::prelude::*;
 use bevy::render::renderer::RenderAdapterInfo;
 use bevy_egui::egui;
@@ -133,81 +134,82 @@ pub fn update_frame_time_history(time: Res<Time>, mut history: ResMut<FrameTimeH
     history.update(time.elapsed_secs_f64(), time.delta_secs());
 }
 
-/// Aggregated GPU/render stats sampled from the main world.
-struct GpuStats {
-    /// Entities with a renderable component (Mesh3d, Mesh2d, or Sprite).
-    drawables: usize,
-    /// Entities that are renderable AND currently passing visibility checks.
-    /// This is the closest main-world approximation of per-view draw calls.
-    draw_calls: usize,
-    meshes_3d: usize,
-    meshes_2d: usize,
-    sprites: usize,
-}
-
-fn count_with<C: Component>(world: &World) -> usize {
-    let Some(id) = world.components().get_id(std::any::TypeId::of::<C>()) else {
-        return 0;
-    };
-    world
-        .archetypes()
-        .iter()
-        .filter(|arch| arch.contains(id))
-        .map(|arch| arch.len() as usize)
-        .sum()
-}
-
-fn collect_gpu_stats(world: &World) -> GpuStats {
-    let meshes_3d = count_with::<Mesh3d>(world);
-    let meshes_2d = count_with::<Mesh2d>(world);
-    let sprites = count_with::<Sprite>(world);
-
-    let mesh3d_id = world.components().get_id(std::any::TypeId::of::<Mesh3d>());
-    let mesh2d_id = world.components().get_id(std::any::TypeId::of::<Mesh2d>());
-    let sprite_id = world.components().get_id(std::any::TypeId::of::<Sprite>());
-    let view_vis_id = world
-        .components()
-        .get_id(std::any::TypeId::of::<ViewVisibility>());
-
-    let is_drawable = |arch: &bevy::ecs::archetype::Archetype| {
-        mesh3d_id.is_some_and(|id| arch.contains(id))
-            || mesh2d_id.is_some_and(|id| arch.contains(id))
-            || sprite_id.is_some_and(|id| arch.contains(id))
+/// Display all `DiagnosticsStore` entries from Bevy's render diagnostics
+/// (paths starting with `render/`) plus the mesh allocator counters.
+///
+/// These are sourced from [`bevy::render::diagnostic::RenderDiagnosticsPlugin`]
+/// and [`bevy::render::diagnostic::MeshAllocatorDiagnosticPlugin`], which are
+/// added automatically by the inspector. They report measurements taken inside
+/// the render world (e.g. per-pass CPU/GPU elapsed time, pipeline statistics
+/// like `clipper_primitives_out` and `*_shader_invocations`) — the actual
+/// numbers GPU drivers see, rather than guesses based on entity counts.
+fn render_gpu_diagnostics(ui: &mut egui::Ui, world: &World) {
+    let Some(store) = world.get_resource::<DiagnosticsStore>() else {
+        ui.label(egui::RichText::new("DiagnosticsStore unavailable").italics().weak());
+        return;
     };
 
-    let drawables: usize = world
-        .archetypes()
+    let mut entries: Vec<(String, String, f64)> = store
         .iter()
-        .filter(|arch| is_drawable(arch))
-        .map(|arch| arch.len() as usize)
-        .sum();
+        .filter_map(|d| {
+            let path = d.path().as_str();
+            if !is_render_diagnostic_path(path) {
+                return None;
+            }
+            let value = d.smoothed().or_else(|| d.value())?;
+            let suffix = d.suffix.trim().to_string();
+            Some((path.to_string(), suffix, value))
+        })
+        .collect();
 
-    let draw_calls = if let Some(view_vis_id) = view_vis_id {
-        let mut count = 0usize;
-        for arch in world.archetypes().iter() {
-            if !is_drawable(arch) || !arch.contains(view_vis_id) {
-                continue;
+    if entries.is_empty() {
+        ui.add_space(4.0);
+        ui.label(
+            egui::RichText::new(
+                "No render diagnostics recorded yet. Pipeline statistics require Vulkan or DX12.",
+            )
+            .italics()
+            .weak(),
+        );
+        return;
+    }
+
+    entries.sort_by(|a, b| a.0.cmp(&b.0));
+
+    ui.add_space(4.0);
+    egui::Grid::new("gpu_diagnostics_grid")
+        .num_columns(2)
+        .spacing([12.0, 4.0])
+        .striped(true)
+        .show(ui, |ui| {
+            for (path, suffix, value) in &entries {
+                ui.label(egui::RichText::new(format!("{path}:")).weak());
+                ui.label(
+                    egui::RichText::new(format_diagnostic_value(*value, suffix)).strong(),
+                );
+                ui.end_row();
             }
-            for entity in arch.entities() {
-                if let Ok(e) = world.get_entity(entity.id())
-                    && let Some(vis) = e.get::<ViewVisibility>()
-                    && vis.get()
-                {
-                    count += 1;
-                }
-            }
-        }
-        count
+        });
+}
+
+fn is_render_diagnostic_path(path: &str) -> bool {
+    path.starts_with("render/")
+        || path == "render"
+        || path.starts_with("mesh_allocator")
+        || path.starts_with("render_asset/")
+        || path.starts_with("erased_render_asset/")
+}
+
+fn format_diagnostic_value(value: f64, suffix: &str) -> String {
+    let suffix = if suffix.is_empty() {
+        String::new()
     } else {
-        drawables
+        format!(" {suffix}")
     };
-
-    GpuStats {
-        drawables,
-        draw_calls,
-        meshes_3d,
-        meshes_2d,
-        sprites,
+    if value.fract() == 0.0 && value.abs() < 1e15 {
+        format!("{}{suffix}", value as i64)
+    } else {
+        format!("{value:.3}{suffix}")
     }
 }
 
@@ -268,12 +270,9 @@ pub fn render(ui: &mut egui::Ui, world: &World) {
     ui.add_space(8.0);
     section_header(ui, "● GPU");
 
-    let stats = collect_gpu_stats(world);
-
-    egui::Grid::new("gpu_grid")
+    egui::Grid::new("gpu_adapter_grid")
         .num_columns(2)
         .spacing([12.0, 4.0])
-        .striped(true)
         .show(ui, |ui| {
             if let Some(info) = world.get_resource::<RenderAdapterInfo>() {
                 ui.label(egui::RichText::new("Adapter:").weak());
@@ -303,29 +302,9 @@ pub fn render(ui: &mut egui::Ui, world: &World) {
                 ui.label(egui::RichText::new("unavailable").italics());
                 ui.end_row();
             }
-
-            ui.label(egui::RichText::new("Draw Calls (est):").weak());
-            ui.label(egui::RichText::new(format!("{}", stats.draw_calls)).strong());
-            ui.end_row();
-
-            ui.label(egui::RichText::new("Visible / Drawable:").weak());
-            ui.label(
-                egui::RichText::new(format!("{} / {}", stats.draw_calls, stats.drawables)).strong(),
-            );
-            ui.end_row();
-
-            ui.label(egui::RichText::new("3D Meshes:").weak());
-            ui.label(egui::RichText::new(format!("{}", stats.meshes_3d)).strong());
-            ui.end_row();
-
-            ui.label(egui::RichText::new("2D Meshes:").weak());
-            ui.label(egui::RichText::new(format!("{}", stats.meshes_2d)).strong());
-            ui.end_row();
-
-            ui.label(egui::RichText::new("Sprites:").weak());
-            ui.label(egui::RichText::new(format!("{}", stats.sprites)).strong());
-            ui.end_row();
         });
+
+    render_gpu_diagnostics(ui, world);
 
     ui.add_space(8.0);
     section_header(ui, "■ Spawned");
