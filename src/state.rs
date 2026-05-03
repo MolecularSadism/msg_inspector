@@ -147,9 +147,15 @@ impl UiState {
             vec![Tab::Builtin(BuiltinTab::Inspector)],
         );
 
-        // Left panel: Diagnostics at top
-        let [main, left_panel] =
-            tree.split_left(main, 0.2, vec![Tab::Builtin(BuiltinTab::Diagnostics)]);
+        // Left panel: Diagnostics + GPU at top (as sibling tabs)
+        let [main, left_panel] = tree.split_left(
+            main,
+            0.2,
+            vec![
+                Tab::Builtin(BuiltinTab::Diagnostics),
+                Tab::Builtin(BuiltinTab::Gpu),
+            ],
+        );
 
         // Entities, Hierarchy, and Resources below diagnostics (as tabs in the same panel)
         tree.split_below(

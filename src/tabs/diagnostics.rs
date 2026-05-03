@@ -4,9 +4,7 @@
 
 use std::collections::VecDeque;
 
-use bevy::diagnostic::DiagnosticsStore;
 use bevy::prelude::*;
-use bevy::render::renderer::RenderAdapterInfo;
 use bevy_egui::egui;
 
 /// Tracks frame times over the last 1 second to compute averages and maxima.
@@ -134,85 +132,6 @@ pub fn update_frame_time_history(time: Res<Time>, mut history: ResMut<FrameTimeH
     history.update(time.elapsed_secs_f64(), time.delta_secs());
 }
 
-/// Display all `DiagnosticsStore` entries from Bevy's render diagnostics
-/// (paths starting with `render/`) plus the mesh allocator counters.
-///
-/// These are sourced from [`bevy::render::diagnostic::RenderDiagnosticsPlugin`]
-/// and [`bevy::render::diagnostic::MeshAllocatorDiagnosticPlugin`], which are
-/// added automatically by the inspector. They report measurements taken inside
-/// the render world (e.g. per-pass CPU/GPU elapsed time, pipeline statistics
-/// like `clipper_primitives_out` and `*_shader_invocations`) — the actual
-/// numbers GPU drivers see, rather than guesses based on entity counts.
-fn render_gpu_diagnostics(ui: &mut egui::Ui, world: &World) {
-    let Some(store) = world.get_resource::<DiagnosticsStore>() else {
-        ui.label(egui::RichText::new("DiagnosticsStore unavailable").italics().weak());
-        return;
-    };
-
-    let mut entries: Vec<(String, String, f64)> = store
-        .iter()
-        .filter_map(|d| {
-            let path = d.path().as_str();
-            if !is_render_diagnostic_path(path) {
-                return None;
-            }
-            let value = d.smoothed().or_else(|| d.value())?;
-            let suffix = d.suffix.trim().to_string();
-            Some((path.to_string(), suffix, value))
-        })
-        .collect();
-
-    if entries.is_empty() {
-        ui.add_space(4.0);
-        ui.label(
-            egui::RichText::new(
-                "No render diagnostics recorded yet. Pipeline statistics require Vulkan or DX12.",
-            )
-            .italics()
-            .weak(),
-        );
-        return;
-    }
-
-    entries.sort_by(|a, b| a.0.cmp(&b.0));
-
-    ui.add_space(4.0);
-    egui::Grid::new("gpu_diagnostics_grid")
-        .num_columns(2)
-        .spacing([12.0, 4.0])
-        .striped(true)
-        .show(ui, |ui| {
-            for (path, suffix, value) in &entries {
-                ui.label(egui::RichText::new(format!("{path}:")).weak());
-                ui.label(
-                    egui::RichText::new(format_diagnostic_value(*value, suffix)).strong(),
-                );
-                ui.end_row();
-            }
-        });
-}
-
-fn is_render_diagnostic_path(path: &str) -> bool {
-    path.starts_with("render/")
-        || path == "render"
-        || path.starts_with("mesh_allocator")
-        || path.starts_with("render_asset/")
-        || path.starts_with("erased_render_asset/")
-}
-
-fn format_diagnostic_value(value: f64, suffix: &str) -> String {
-    let suffix = if suffix.is_empty() {
-        String::new()
-    } else {
-        format!(" {suffix}")
-    };
-    if value.fract() == 0.0 && value.abs() < 1e15 {
-        format!("{}{suffix}", value as i64)
-    } else {
-        format!("{value:.3}{suffix}")
-    }
-}
-
 /// Render a styled section header with separator.
 fn section_header(ui: &mut egui::Ui, text: &str) {
     ui.add_space(2.0);
@@ -266,45 +185,6 @@ pub fn render(ui: &mut egui::Ui, world: &World) {
             );
             ui.end_row();
         });
-
-    ui.add_space(8.0);
-    section_header(ui, "● GPU");
-
-    egui::Grid::new("gpu_adapter_grid")
-        .num_columns(2)
-        .spacing([12.0, 4.0])
-        .show(ui, |ui| {
-            if let Some(info) = world.get_resource::<RenderAdapterInfo>() {
-                ui.label(egui::RichText::new("Adapter:").weak());
-                ui.label(egui::RichText::new(&info.0.name).strong());
-                ui.end_row();
-
-                ui.label(egui::RichText::new("Backend:").weak());
-                ui.label(egui::RichText::new(format!("{:?}", info.0.backend)).strong());
-                ui.end_row();
-
-                ui.label(egui::RichText::new("Device Type:").weak());
-                ui.label(egui::RichText::new(format!("{:?}", info.0.device_type)).strong());
-                ui.end_row();
-
-                if !info.0.driver.is_empty() {
-                    ui.label(egui::RichText::new("Driver:").weak());
-                    let driver = if info.0.driver_info.is_empty() {
-                        info.0.driver.clone()
-                    } else {
-                        format!("{} ({})", info.0.driver, info.0.driver_info)
-                    };
-                    ui.label(egui::RichText::new(driver).strong());
-                    ui.end_row();
-                }
-            } else {
-                ui.label(egui::RichText::new("Adapter:").weak());
-                ui.label(egui::RichText::new("unavailable").italics());
-                ui.end_row();
-            }
-        });
-
-    render_gpu_diagnostics(ui, world);
 
     ui.add_space(8.0);
     section_header(ui, "■ Spawned");

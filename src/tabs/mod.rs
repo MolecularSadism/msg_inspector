@@ -4,6 +4,7 @@ mod assets;
 mod diagnostics;
 pub(crate) mod entities;
 mod game_view;
+mod gpu;
 mod hierarchy;
 mod inspector;
 mod resources;
@@ -582,6 +583,8 @@ pub enum BuiltinTab {
     Assets,
     /// Performance diagnostics.
     Diagnostics,
+    /// GPU adapter info and render diagnostics.
+    Gpu,
 }
 
 /// Tab viewer for `egui_dock` that handles both built-in and custom tabs.
@@ -656,6 +659,9 @@ impl egui_dock::TabViewer for TabViewer<'_> {
                     BuiltinTab::Diagnostics => {
                         diagnostics::render(ui, self.world);
                     }
+                    BuiltinTab::Gpu => {
+                        gpu::render(ui, self.world);
+                    }
                 }
             }
             Tab::Custom(index) => {
@@ -691,6 +697,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
                 BuiltinTab::Resources => "■ Resources".into(),
                 BuiltinTab::Assets => "◇ Assets".into(),
                 BuiltinTab::Diagnostics => "○ Diagnostics".into(),
+                BuiltinTab::Gpu => "● GPU".into(),
             },
             Tab::Custom(index) => {
                 if let Some(tab) = self.custom_tabs.get(*index) {
