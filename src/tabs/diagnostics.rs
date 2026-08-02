@@ -110,7 +110,11 @@ impl DiagnosticsCounters {
     }
 
     /// Register a counter with a custom label and count function.
-    pub fn add_custom(&mut self, label: impl Into<String>, count_fn: impl Fn(&World) -> usize + Send + Sync + 'static) {
+    pub fn add_custom(
+        &mut self,
+        label: impl Into<String>,
+        count_fn: impl Fn(&World) -> usize + Send + Sync + 'static,
+    ) {
         self.counters.push(CounterEntry {
             label: label.into(),
             count_fn: Box::new(count_fn),
@@ -244,10 +248,7 @@ mod tests {
 
     #[test]
     fn short_type_name_generic() {
-        assert_eq!(
-            short_type_name("my_game::Handle<my_game::Mesh>"),
-            "Handle"
-        );
+        assert_eq!(short_type_name("my_game::Handle<my_game::Mesh>"), "Handle");
     }
 
     #[test]

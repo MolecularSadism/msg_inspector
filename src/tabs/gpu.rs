@@ -121,9 +121,7 @@ fn render_diagnostics(ui: &mut egui::Ui, world: &World) {
         .show(ui, |ui| {
             for entry in &entries {
                 ui.label(egui::RichText::new(format!("{}:", entry.label())).weak());
-                ui.label(
-                    egui::RichText::new(format_value(entry.value, &entry.suffix)).strong(),
-                );
+                ui.label(egui::RichText::new(format_value(entry.value, &entry.suffix)).strong());
                 ui.end_row();
             }
         });
@@ -247,10 +245,7 @@ mod tests {
 
     #[test]
     fn classify_mesh_allocator() {
-        assert_eq!(
-            classify("mesh_allocator_slabs"),
-            Some(Kind::MeshAllocator)
-        );
+        assert_eq!(classify("mesh_allocator_slabs"), Some(Kind::MeshAllocator));
     }
 
     #[test]
@@ -279,7 +274,7 @@ mod tests {
 
     #[test]
     fn ordering_puts_frame_first() {
-        let mut ks = vec![
+        let mut ks = [
             Kind::AssetCounters,
             Kind::PipelineStats,
             Kind::PassElapsed,

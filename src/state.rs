@@ -26,7 +26,12 @@ fn dock_style(egui_style: &egui::Style) -> Style {
     style.tab.spacing = 2.0;
 
     // Rounded top corners on all tab interaction states
-    let rounding = egui::CornerRadius { nw: 4, ne: 4, sw: 0, se: 0 };
+    let rounding = egui::CornerRadius {
+        nw: 4,
+        ne: 4,
+        sw: 0,
+        se: 0,
+    };
     style.tab.active.corner_radius = rounding;
     style.tab.focused.corner_radius = rounding;
     style.tab.hovered.corner_radius = rounding;

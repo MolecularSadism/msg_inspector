@@ -29,7 +29,8 @@ struct Pickup;
 
 // ---- Extra marker components (non-principal) -----------------------------
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 struct Health(f32);
 
 #[derive(Component)]
@@ -60,12 +61,7 @@ fn setup(mut commands: Commands) {
 
     // NPCs
     for name in ["Shopkeeper", "Blacksmith", "Innkeeper"] {
-        commands.spawn((
-            Name::new(name),
-            Npc,
-            Health(100.0),
-            Transform::default(),
-        ));
+        commands.spawn((Name::new(name), Npc, Health(100.0), Transform::default()));
     }
 
     // Pickups
@@ -77,12 +73,7 @@ fn setup(mut commands: Commands) {
         ));
     }
 
-    commands.spawn((
-        Name::new("Gold Coin"),
-        Pickup,
-        Loot,
-        Transform::default(),
-    ));
+    commands.spawn((Name::new("Gold Coin"), Pickup, Loot, Transform::default()));
 
     // Entities with multiple principals (appear in several trees)
     commands.spawn((
@@ -102,20 +93,11 @@ fn setup(mut commands: Commands) {
     ));
 
     // Uncategorized entities (no principal)
-    commands.spawn((
-        Name::new("Background Music"),
-        Transform::default(),
-    ));
+    commands.spawn((Name::new("Background Music"), Transform::default()));
 
-    commands.spawn((
-        Name::new("Particle System"),
-        Transform::default(),
-    ));
+    commands.spawn((Name::new("Particle System"), Transform::default()));
 
-    commands.spawn((
-        Name::new("Trigger Zone"),
-        Transform::default(),
-    ));
+    commands.spawn((Name::new("Trigger Zone"), Transform::default()));
 
     // A truly anonymous entity
     commands.spawn(Transform::default());
@@ -127,10 +109,13 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(InspectorPlugin::default())
+        // Registered so the Inspector tab can display the value
+        .register_type::<Health>()
         // Group Enemy and Npc under a "Characters" parent category
         .register_principal_group::<(Enemy, Npc)>("Characters")
         // Register Pickup as a standalone principal with a custom display name
-        .register_principal::<Pickup>().with_name("Lootables")
+        .register_principal::<Pickup>()
+        .with_name("Lootables")
         .add_systems(Startup, setup)
         .run();
 }

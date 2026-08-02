@@ -40,9 +40,9 @@ struct DeferredPrincipal {
 /// Resource that stores principal component registrations.
 ///
 /// Register principal components during app setup via
-/// [`InspectorExt::register_principal`]. In the **Entities** tab each
+/// [`InspectorExt::register_principal`](crate::tabs::InspectorExt::register_principal). In the **Entities** tab each
 /// principal gets its own collapsible tree containing every entity that
-/// has that component. Use [`InspectorExt::register_principal_group`] to
+/// has that component. Use [`InspectorExt::register_principal_group`](crate::tabs::InspectorExt::register_principal_group) to
 /// organize principals under a shared parent category. Entities without
 /// *any* registered principal appear under an **Uncategorized** folder.
 #[derive(Resource, Default)]
@@ -79,7 +79,7 @@ impl PrincipalRegistry {
 
     /// Override the display name of the most recently queued principal.
     ///
-    /// This is the backing method for [`InspectorExt::with_name`].
+    /// This is the backing method for [`InspectorExt::with_name`](crate::tabs::InspectorExt::with_name).
     pub fn set_last_name(&mut self, name: String) {
         if let Some(last) = self.deferred.last_mut() {
             last.label = name;
@@ -88,7 +88,7 @@ impl PrincipalRegistry {
 
     /// Assign the most recently queued principal to a named group.
     ///
-    /// This is the backing method for [`InspectorExt::with_group`].
+    /// This is the backing method for [`InspectorExt::with_group`](crate::tabs::InspectorExt::with_group).
     pub fn set_last_group(&mut self, group: String) {
         if let Some(last) = self.deferred.last_mut() {
             last.group = Some(group);
@@ -142,7 +142,7 @@ fn pretty_type_name<T: 'static>() -> String {
 ///
 /// Implemented automatically for tuples of components up to arity 8.
 /// You do not need to implement this trait yourself — pass a tuple to
-/// [`InspectorExt::register_principal_group`] and the blanket implementation
+/// [`InspectorExt::register_principal_group`](crate::tabs::InspectorExt::register_principal_group) and the blanket implementation
 /// handles the rest.
 pub trait PrincipalTuple {
     /// Push deferred registrations for every component in the tuple.
@@ -279,9 +279,7 @@ pub fn render(
         ui.label(egui::RichText::new("Category:").weak());
         let current_label = match &tab_state.active_category {
             ActiveCategory::All => "All",
-            ActiveCategory::Group(idx) => {
-                groups.get(*idx).map_or("All", |g| g.name.as_str())
-            }
+            ActiveCategory::Group(idx) => groups.get(*idx).map_or("All", |g| g.name.as_str()),
             ActiveCategory::Standalone(idx) => {
                 standalones.get(*idx).map_or("All", |s| s.label.as_str())
             }
@@ -495,8 +493,7 @@ fn render_uncategorized_section(
     let entities = collect_uncategorized_entities(world, all_principal_ids, search_query);
     let header = format!("Uncategorized ({})", entities.len());
 
-    let mut collapsing =
-        egui::CollapsingHeader::new(header).id_salt("entities_uncategorized");
+    let mut collapsing = egui::CollapsingHeader::new(header).id_salt("entities_uncategorized");
     if always_open {
         collapsing = collapsing.default_open(true);
     }
@@ -576,9 +573,7 @@ fn collect_uncategorized_entities(
 
     let mut q = world.query::<EntityRef>();
     for entity_ref in q.iter(world) {
-        let has_any = principal_ids
-            .iter()
-            .any(|id| entity_ref.contains_id(*id));
+        let has_any = principal_ids.iter().any(|id| entity_ref.contains_id(*id));
         if has_any {
             continue;
         }

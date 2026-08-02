@@ -8,6 +8,7 @@
 //! than where the cursor sits on the full window.
 
 use bevy::{
+    ecs::system::SystemParam,
     gizmos::gizmos::Gizmos,
     prelude::*,
     sprite::Anchor,
@@ -82,6 +83,41 @@ impl Default for CrosshairConfig {
 #[reflect(Component)]
 pub struct PickingIgnore;
 
+/// The camera picks are projected through: the inspector's main camera,
+/// never the egui context camera.
+type PickingCamera<'w, 's> = Single<
+    'w,
+    's,
+    (&'static Camera, &'static GlobalTransform),
+    (With<InspectorMainCamera>, Without<PrimaryEguiContext>),
+>;
+
+/// Sprites eligible for picking — everything not marked [`PickingIgnore`].
+type PickableSprites<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static GlobalTransform,
+        &'static ViewVisibility,
+        &'static Sprite,
+        &'static Anchor,
+    ),
+    Without<PickingIgnore>,
+>;
+
+/// Input state and world data a pick is resolved against.
+#[derive(SystemParam)]
+pub struct PickingScene<'w, 's> {
+    keys: Res<'w, ButtonInput<KeyCode>>,
+    mouse_buttons: Res<'w, ButtonInput<MouseButton>>,
+    window: Single<'w, 's, &'static Window, With<PrimaryWindow>>,
+    camera: PickingCamera<'w, 's>,
+    sprites: PickableSprites<'w, 's>,
+    images: Res<'w, Assets<Image>>,
+    layouts: Res<'w, Assets<TextureAtlasLayout>>,
+}
+
 /// Selects the sprite under the cursor on Alt+Left click in the game view.
 ///
 /// The click is only handled while the inspector is enabled and the cursor is
@@ -95,25 +131,14 @@ pub fn handle_picking_clicks(
     mut ui_state: ResMut<UiState>,
     enabled: Res<InspectorEnabled>,
     viewport_rect: Res<GameViewportRect>,
-    keys: Res<ButtonInput<KeyCode>>,
-    mouse_buttons: Res<ButtonInput<MouseButton>>,
-    window: Single<&Window, With<PrimaryWindow>>,
-    camera: Single<
-        (&Camera, &GlobalTransform),
-        (With<InspectorMainCamera>, Without<PrimaryEguiContext>),
-    >,
-    q_sprites: Query<
-        (Entity, &GlobalTransform, &ViewVisibility, &Sprite, &Anchor),
-        Without<PickingIgnore>,
-    >,
-    images: Res<Assets<Image>>,
-    layouts: Res<Assets<TextureAtlasLayout>>,
+    scene: PickingScene,
 ) {
+    let keys = &scene.keys;
     let alt_held = keys.pressed(KeyCode::AltLeft) || keys.pressed(KeyCode::AltRight);
-    if !enabled.0 || !alt_held || !mouse_buttons.just_pressed(MouseButton::Left) {
+    if !enabled.0 || !alt_held || !scene.mouse_buttons.just_pressed(MouseButton::Left) {
         return;
     }
-    let Some(cursor) = window.cursor_position() else {
+    let Some(cursor) = scene.window.cursor_position() else {
         return;
     };
     if !viewport_rect.contains(cursor.x, cursor.y) {
@@ -123,17 +148,24 @@ pub fn handle_picking_clicks(
     // `viewport_to_world_2d` subtracts the camera's logical viewport offset
     // internally, so the raw window cursor position is already correct even
     // when the inspector has shrunk the camera to the Game tab.
-    let (camera, camera_transform) = *camera;
+    let (camera, camera_transform) = *scene.camera;
     let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor) else {
         return;
     };
 
     let mut best: Option<(Entity, f32)> = None;
-    for (entity, global, visibility, sprite, anchor) in &q_sprites {
+    for (entity, global, visibility, sprite, anchor) in &scene.sprites {
         if !visibility.get() {
             continue;
         }
-        if !sprite_contains_world_point(sprite, *anchor, global, world_pos, &images, &layouts) {
+        if !sprite_contains_world_point(
+            sprite,
+            *anchor,
+            global,
+            world_pos,
+            &scene.images,
+            &scene.layouts,
+        ) {
             continue;
         }
         let z = global.translation().z;

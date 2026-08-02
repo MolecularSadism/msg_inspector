@@ -16,6 +16,11 @@ use sublime_fuzzy::best_match;
 
 use crate::state::InspectorSelection;
 
+/// Render callback for a custom inspector section.
+///
+/// Receives the egui [`Ui`](egui::Ui), mutable [`World`], and selected [`Entity`].
+pub type SectionRenderFn = Box<dyn Fn(&mut egui::Ui, &mut World, Entity) + Send + Sync>;
+
 /// A registered custom section for the Inspector tab.
 ///
 /// Each section is coupled to a marker component — it only renders
@@ -26,7 +31,7 @@ pub struct InspectorSection {
     /// Title displayed as a collapsible header.
     pub title: String,
     /// Render function: receives the egui Ui, mutable World, and selected Entity.
-    pub render_fn: Box<dyn Fn(&mut egui::Ui, &mut World, Entity) + Send + Sync>,
+    pub render_fn: SectionRenderFn,
 }
 
 /// Resource holding all registered custom inspector sections.
@@ -43,7 +48,7 @@ fn entity_has_component(world: &World, entity: Entity, type_id: TypeId) -> bool 
     world
         .get_entity(entity)
         .ok()
-        .map_or(false, |e| e.archetype().contains(component_id))
+        .is_some_and(|e| e.archetype().contains(component_id))
 }
 
 /// Built-in inspector section for the Transform component.
@@ -81,10 +86,8 @@ pub fn transform_section_ui(ui: &mut egui::Ui, world: &mut World, entity: Entity
         ));
     });
 
-    if changed {
-        if let Some(mut t) = world.get_mut::<Transform>(entity) {
-            t.translation = translation;
-        }
+    if changed && let Some(mut t) = world.get_mut::<Transform>(entity) {
+        t.translation = translation;
     }
 }
 
@@ -107,11 +110,9 @@ pub fn render(
                     ui.label(egui::RichText::new("No entity selected").weak());
                     ui.add_space(2.0);
                     ui.label(
-                        egui::RichText::new(
-                            "Select an entity from the Hierarchy or Entities tab.",
-                        )
-                        .weak()
-                        .small(),
+                        egui::RichText::new("Select an entity from the Hierarchy or Entities tab.")
+                            .weak()
+                            .small(),
                     );
                 });
                 return;
@@ -127,11 +128,7 @@ pub fn render(
                         .unwrap_or_else(|| format!("Entity {}", entity));
 
                     ui.heading(egui::RichText::new(&entity_name).strong());
-                    ui.label(
-                        egui::RichText::new(format!("{entity:?}"))
-                            .weak()
-                            .small(),
-                    );
+                    ui.label(egui::RichText::new(format!("{entity:?}")).weak().small());
                     ui.add_space(4.0);
 
                     // ── Custom sections ──────────────────────────────
@@ -242,7 +239,11 @@ fn render_matching_components_list(
         matching.sort_by(|(_, a): &(&str, isize), (_, b): &(&str, isize)| b.cmp(a));
 
         if matching.is_empty() {
-            ui.label(egui::RichText::new("No matching components").weak().italics());
+            ui.label(
+                egui::RichText::new("No matching components")
+                    .weak()
+                    .italics(),
+            );
         } else {
             ui.label(format!("{} matching components:", matching.len()));
             for (name, _) in &matching {
