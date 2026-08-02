@@ -13,7 +13,8 @@ This crate provides a registration-based API where game modules can locally decl
 ## Features
 
 - **Built-in tabs**: GameView, Hierarchy, Inspector, Resources, Assets, Diagnostics
-- **Entity picking**: Click entities in the viewport to select them
+- **Entity picking**: Alt+Left click inside the game viewport selects the topmost sprite under
+  the cursor (Shift/Ctrl extends the selection); mark sprites with `PickingIgnore` to exclude them
 - **Viewport management**: Automatic camera viewport clipping to dock area
 - **Tab registration**: Games can register custom tabs via `InspectorExt` trait
 
@@ -125,6 +126,21 @@ Use `egui_pointer_over_area` to prevent game clicks when the cursor is over pane
 app.add_systems(Update, my_click_system.run_if(not(egui_pointer_over_area)));
 ```
 
+## Entity Picking
+
+Hold **Alt** and left-click inside the game viewport to select the topmost sprite under the
+cursor; hold Shift or Ctrl as well to extend the current selection. Plain left clicks are left
+to the game. Picking uses the camera marked `InspectorMainCamera`, so it stays accurate while
+the viewport is clipped to the Game tab, and tests sprites in their local frame — rotation,
+scale, anchors, sprite rects, and texture-atlas frames all count.
+
+Sprites that cover the view without being useful pick targets (a camera-following, screen-sized
+canvas sprite, for instance) can opt out:
+
+```rust
+commands.spawn((Sprite::default(), PickingIgnore));
+```
+
 ## Toggle Visibility
 
 Press the **Delete** key to toggle the inspector panel visibility.
@@ -133,6 +149,7 @@ Press the **Delete** key to toggle the inspector panel visibility.
 
 | `msg_inspector` | Bevy |
 |-----------------|------|
+| 0.4             | 0.18 |
 | 0.3             | 0.18 |
 | 0.2             | 0.17 |
 | 0.1             | 0.16 |

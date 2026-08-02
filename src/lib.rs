@@ -9,7 +9,9 @@
 //! ## Features
 //!
 //! - **Built-in tabs**: `GameView`, Entities, Hierarchy, Inspector, Resources, Assets, Diagnostics
-//! - **Entity picking**: Click entities in the viewport to select them
+//! - **Entity picking**: Alt+Left click inside the game viewport selects the topmost sprite
+//!   under the cursor (Shift/Ctrl extends the selection); mark sprites with
+//!   [`PickingIgnore`] to exclude them
 //! - **Viewport management**: Automatic camera viewport clipping to dock area
 //! - **Tab registration**: Games can register custom tabs via [`InspectorExt`] trait
 //! - **Custom counters**: Track component counts in the Diagnostics tab via [`InspectorPlugin::with_counter`]
@@ -36,7 +38,7 @@
 //!     // Mark your main camera for viewport management
 //!     commands.spawn((Camera2d, InspectorMainCamera));
 //! }
-//! 
+//!
 //! fn plugin(app: &mut App) {
 //!     app.add_plugins((DefaultPlugins, InspectorPlugin::default()));
 //!     app.register_inspector_interactive("cheats", "Cheats", |ui, world| {
@@ -123,11 +125,13 @@ use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
 pub use panel::show_ui_system;
-pub use picking::{CrosshairConfig, handle_picking_clicks, update_picked_entity_marker};
+pub use picking::{
+    CrosshairConfig, PickingIgnore, handle_picking_clicks, update_picked_entity_marker,
+};
 pub use state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState};
 pub use tabs::{
-    ActiveCategory, BuiltinTab, DiagnosticsCounters, DockPosition, FrameTimeHistory,
-    InspectorExt, InspectorSection, InspectorSectionRegistry, InspectorTab, InspectorTabRegistry,
+    ActiveCategory, BuiltinTab, DiagnosticsCounters, DockPosition, FrameTimeHistory, InspectorExt,
+    InspectorSection, InspectorSectionRegistry, InspectorTab, InspectorTabRegistry,
     PrincipalRegistry, PrincipalTuple, Tab, transform_section_ui,
 };
 pub use viewport::{InspectorMainCamera, egui_pointer_over_area, set_camera_viewport};
@@ -255,6 +259,7 @@ impl Plugin for InspectorPlugin {
         app.register_type::<InspectorEnabled>()
             .register_type::<picking::PickedEntityMarker>()
             .register_type::<picking::CrosshairConfig>()
+            .register_type::<picking::PickingIgnore>()
             .init_resource::<InspectorEnabled>()
             .init_resource::<GameViewportRect>()
             .init_resource::<InspectorTabRegistry>()
