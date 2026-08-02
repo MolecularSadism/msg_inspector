@@ -1,9 +1,25 @@
 //! Entity picking systems for selecting entities in the viewport.
+//!
+//! Alt+Left click inside the Game tab selects the topmost sprite under the
+//! cursor for the Inspector tab (Shift/Ctrl extends the selection). The pick
+//! is routed through the [`InspectorMainCamera`], whose viewport
+//! [`set_camera_viewport`](crate::set_camera_viewport) shrinks to the Game
+//! tab's rect, so picks land on the world position the game view shows rather
+//! than where the cursor sits on the full window.
 
-use bevy::{gizmos::gizmos::Gizmos, prelude::*, window::Window};
-use bevy_egui::{EguiContext, PrimaryEguiContext};
+use bevy::{
+    ecs::system::SystemParam,
+    gizmos::gizmos::Gizmos,
+    prelude::*,
+    sprite::Anchor,
+    window::{PrimaryWindow, Window},
+};
+use bevy_egui::PrimaryEguiContext;
 
-use crate::state::{InspectorEnabled, InspectorSelection, UiState};
+use crate::{
+    state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState},
+    viewport::InspectorMainCamera,
+};
 
 /// Marker component for the crosshair visual that shows the picked entity's position.
 #[derive(Component, Reflect)]
@@ -44,96 +60,154 @@ impl Default for CrosshairConfig {
     }
 }
 
-/// Handles mouse clicks on entities to select them for inspection.
+/// Marker component that excludes an entity from inspector entity picking.
 ///
-/// Note: This system requires `MouseCoords` resource to be available from the game.
-/// Games should provide a system that populates world coordinates from mouse position.
-/// This is a simplified version that uses direct window cursor position.
+/// Insert it on sprites that cover the game view without being meaningful pick
+/// targets — a camera-following, screen-sized canvas sprite (as used by
+/// pixel-perfect render pipelines) would otherwise swallow every pick.
+///
+/// # Example
+///
+/// ```
+/// use bevy::prelude::*;
+/// use msg_inspector::prelude::*;
+///
+/// fn spawn_canvas(mut commands: Commands) {
+///     commands.spawn((Sprite::default(), PickingIgnore));
+/// }
+///
+/// let mut app = App::new();
+/// app.add_systems(Startup, spawn_canvas);
+/// ```
+#[derive(Component, Reflect, Clone, Copy, Debug, Default)]
+#[reflect(Component)]
+pub struct PickingIgnore;
+
+/// The camera picks are projected through: the inspector's main camera,
+/// never the egui context camera.
+type PickingCamera<'w, 's> = Single<
+    'w,
+    's,
+    (&'static Camera, &'static GlobalTransform),
+    (With<InspectorMainCamera>, Without<PrimaryEguiContext>),
+>;
+
+/// Sprites eligible for picking — everything not marked [`PickingIgnore`].
+type PickableSprites<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static GlobalTransform,
+        &'static ViewVisibility,
+        &'static Sprite,
+        &'static Anchor,
+    ),
+    Without<PickingIgnore>,
+>;
+
+/// Input state and world data a pick is resolved against.
+#[derive(SystemParam)]
+pub struct PickingScene<'w, 's> {
+    keys: Res<'w, ButtonInput<KeyCode>>,
+    mouse_buttons: Res<'w, ButtonInput<MouseButton>>,
+    window: Single<'w, 's, &'static Window, With<PrimaryWindow>>,
+    camera: PickingCamera<'w, 's>,
+    sprites: PickableSprites<'w, 's>,
+    images: Res<'w, Assets<Image>>,
+    layouts: Res<'w, Assets<TextureAtlasLayout>>,
+}
+
+/// Selects the sprite under the cursor on Alt+Left click in the game view.
+///
+/// The click is only handled while the inspector is enabled and the cursor is
+/// inside [`GameViewportRect`] — the Game tab's rect, which holds regardless of
+/// whether egui claims the pointer elsewhere in the dock. Holding Shift or
+/// Ctrl extends the current selection instead of replacing it.
+///
+/// Candidates are visible sprites without [`PickingIgnore`]. Among hits, the
+/// highest world z wins (closest to the 2D camera).
 pub fn handle_picking_clicks(
     mut ui_state: ResMut<UiState>,
     enabled: Res<InspectorEnabled>,
-    keyboard: Res<ButtonInput<KeyCode>>,
-    mouse_button: Res<ButtonInput<MouseButton>>,
-    windows: Query<&Window>,
-    mut q_egui_ctx: Query<&mut EguiContext, With<PrimaryEguiContext>>,
-    q_sprites: Query<(Entity, &GlobalTransform, &Sprite)>,
-    images: Res<Assets<Image>>,
-    camera_query: Query<(&Camera, &GlobalTransform)>,
+    viewport_rect: Res<GameViewportRect>,
+    scene: PickingScene,
 ) {
-    if !enabled.0 {
+    let keys = &scene.keys;
+    let alt_held = keys.pressed(KeyCode::AltLeft) || keys.pressed(KeyCode::AltRight);
+    if !enabled.0 || !alt_held || !scene.mouse_buttons.just_pressed(MouseButton::Left) {
+        return;
+    }
+    let Some(cursor) = scene.window.cursor_position() else {
+        return;
+    };
+    if !viewport_rect.contains(cursor.x, cursor.y) {
         return;
     }
 
-    // Only handle left clicks
-    if !mouse_button.just_pressed(MouseButton::Left) {
-        return;
-    }
-
-    // Check if egui wants the pointer (clicking on UI panels)
-    if let Ok(mut egui_ctx) = q_egui_ctx.single_mut()
-        && egui_ctx.get_mut().wants_pointer_input()
-    {
-        return;
-    }
-
-    // Get cursor position in window
-    let Ok(window) = windows.single() else {
-        return;
-    };
-    let Some(cursor_pos) = window.cursor_position() else {
+    // `viewport_to_world_2d` subtracts the camera's logical viewport offset
+    // internally, so the raw window cursor position is already correct even
+    // when the inspector has shrunk the camera to the Game tab.
+    let (camera, camera_transform) = *scene.camera;
+    let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor) else {
         return;
     };
 
-    // Find a camera to convert to world coordinates
-    // Try to find a camera that's not the egui camera
-    let Some((camera, camera_transform)) = camera_query.iter().find(|(cam, _)| cam.order >= 0)
-    else {
-        return;
-    };
-
-    // Convert cursor position to world coordinates
-    let Ok(mouse_world_pos) = camera.viewport_to_world_2d(camera_transform, cursor_pos) else {
-        return;
-    };
-
-    // Find the sprite with highest z-order that contains the mouse position
-    let mut best_hit: Option<(Entity, f32)> = None;
-
-    for (entity, global_transform, sprite) in &q_sprites {
-        let sprite_pos = global_transform.translation().truncate();
-        let sprite_z = global_transform.translation().z;
-
-        let sprite_size = sprite.custom_size.unwrap_or_else(|| {
-            images
-                .get(&sprite.image)
-                .map_or(Vec2::splat(32.0), |img| img.size().as_vec2())
-        });
-
-        let half_size = sprite_size / 2.0;
-        let min = sprite_pos - half_size;
-        let max = sprite_pos + half_size;
-
-        if mouse_world_pos.x >= min.x
-            && mouse_world_pos.x <= max.x
-            && mouse_world_pos.y >= min.y
-            && mouse_world_pos.y <= max.y
-        {
-            // Select entity with highest z (closest to camera)
-            if best_hit.is_none_or(|(_, best_z)| sprite_z > best_z) {
-                best_hit = Some((entity, sprite_z));
-            }
+    let mut best: Option<(Entity, f32)> = None;
+    for (entity, global, visibility, sprite, anchor) in &scene.sprites {
+        if !visibility.get() {
+            continue;
+        }
+        if !sprite_contains_world_point(
+            sprite,
+            *anchor,
+            global,
+            world_pos,
+            &scene.images,
+            &scene.layouts,
+        ) {
+            continue;
+        }
+        let z = global.translation().z;
+        if best.is_none_or(|(_, best_z)| z > best_z) {
+            best = Some((entity, z));
         }
     }
 
-    if let Some((entity, _)) = best_hit {
-        let add = keyboard.pressed(KeyCode::ControlLeft)
-            || keyboard.pressed(KeyCode::ControlRight)
-            || keyboard.pressed(KeyCode::ShiftLeft)
-            || keyboard.pressed(KeyCode::ShiftRight);
+    let Some((entity, _)) = best else {
+        return;
+    };
 
-        ui_state.selected_entities.select_maybe_add(entity, add);
-        ui_state.selection = InspectorSelection::Entities;
-    }
+    let extend = keys.pressed(KeyCode::ShiftLeft)
+        || keys.pressed(KeyCode::ShiftRight)
+        || keys.pressed(KeyCode::ControlLeft)
+        || keys.pressed(KeyCode::ControlRight);
+    ui_state.selected_entities.select_maybe_add(entity, extend);
+    ui_state.selection = InspectorSelection::Entities;
+}
+
+/// Whether `world_pos` lies inside the sprite's rendered rectangle.
+///
+/// The point is transformed into the sprite's local frame (covering
+/// translation, rotation, and scale), then tested against the sprite's bounds
+/// via [`Sprite::compute_pixel_space_point`], which resolves custom sizes,
+/// sprite rects, and texture-atlas frames. A degenerate transform (zero scale)
+/// produces a non-finite local point, which that test rejects.
+fn sprite_contains_world_point(
+    sprite: &Sprite,
+    anchor: Anchor,
+    global: &GlobalTransform,
+    world_pos: Vec2,
+    images: &Assets<Image>,
+    layouts: &Assets<TextureAtlasLayout>,
+) -> bool {
+    let local = global
+        .affine()
+        .inverse()
+        .transform_point3(world_pos.extend(global.translation().z));
+    sprite
+        .compute_pixel_space_point(local.truncate(), anchor, images, layouts)
+        .is_ok()
 }
 
 /// Updates the visual crosshair marker to show the position of selected entities.
@@ -181,5 +255,162 @@ pub fn update_picked_entity_marker(
                 color,
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assets() -> (Assets<Image>, Assets<TextureAtlasLayout>) {
+        (Assets::default(), Assets::default())
+    }
+
+    fn sprite_sized(size: Vec2) -> Sprite {
+        Sprite {
+            custom_size: Some(size),
+            ..Default::default()
+        }
+    }
+
+    fn hit(sprite: &Sprite, anchor: Anchor, transform: Transform, world_pos: Vec2) -> bool {
+        let (images, layouts) = assets();
+        sprite_contains_world_point(
+            sprite,
+            anchor,
+            &GlobalTransform::from(transform),
+            world_pos,
+            &images,
+            &layouts,
+        )
+    }
+
+    #[test]
+    fn hit_inside_and_outside_axis_aligned_sprite() {
+        let sprite = sprite_sized(Vec2::new(10.0, 4.0));
+        let transform = Transform::from_translation(Vec3::new(100.0, 50.0, 3.0));
+
+        assert!(hit(
+            &sprite,
+            Anchor::CENTER,
+            transform,
+            Vec2::new(100.0, 50.0)
+        ));
+        assert!(hit(
+            &sprite,
+            Anchor::CENTER,
+            transform,
+            Vec2::new(104.9, 51.9)
+        ));
+        assert!(!hit(
+            &sprite,
+            Anchor::CENTER,
+            transform,
+            Vec2::new(105.5, 50.0)
+        ));
+        assert!(!hit(
+            &sprite,
+            Anchor::CENTER,
+            transform,
+            Vec2::new(100.0, 52.5)
+        ));
+    }
+
+    #[test]
+    fn hit_respects_transform_scale() {
+        let sprite = sprite_sized(Vec2::splat(10.0));
+        let transform = Transform::from_scale(Vec3::new(2.0, 2.0, 1.0));
+
+        // Scaled world half-extent is 10.0 on both axes.
+        assert!(hit(
+            &sprite,
+            Anchor::CENTER,
+            transform,
+            Vec2::new(9.0, -9.0)
+        ));
+        assert!(!hit(
+            &sprite,
+            Anchor::CENTER,
+            transform,
+            Vec2::new(11.0, 0.0)
+        ));
+    }
+
+    #[test]
+    fn hit_respects_rotation() {
+        let sprite = sprite_sized(Vec2::new(10.0, 2.0));
+        let transform =
+            Transform::from_rotation(Quat::from_rotation_z(std::f32::consts::FRAC_PI_2));
+
+        // A quarter turn puts the long axis vertical in world space.
+        assert!(hit(&sprite, Anchor::CENTER, transform, Vec2::new(0.0, 4.0)));
+        assert!(!hit(
+            &sprite,
+            Anchor::CENTER,
+            transform,
+            Vec2::new(4.0, 0.0)
+        ));
+    }
+
+    #[test]
+    fn hit_respects_anchor() {
+        let sprite = sprite_sized(Vec2::splat(8.0));
+        let transform = Transform::from_translation(Vec3::new(10.0, 10.0, 0.0));
+
+        // Bottom-left anchor: the sprite spans upward and rightward from the
+        // entity translation.
+        assert!(hit(
+            &sprite,
+            Anchor::BOTTOM_LEFT,
+            transform,
+            Vec2::new(11.0, 11.0)
+        ));
+        assert!(!hit(
+            &sprite,
+            Anchor::BOTTOM_LEFT,
+            transform,
+            Vec2::new(9.0, 9.0)
+        ));
+    }
+
+    #[test]
+    fn hit_uses_atlas_frame_size() {
+        let (images, mut layouts) = assets();
+        let layout = TextureAtlasLayout::from_grid(UVec2::splat(16), 2, 2, None, None);
+        let layout_handle = layouts.add(layout);
+        let sprite = Sprite {
+            texture_atlas: Some(TextureAtlas {
+                layout: layout_handle,
+                index: 0,
+            }),
+            ..Default::default()
+        };
+        let global = GlobalTransform::IDENTITY;
+
+        // The 16x16 frame, not the 32x32 sheet, bounds the hit.
+        assert!(sprite_contains_world_point(
+            &sprite,
+            Anchor::CENTER,
+            &global,
+            Vec2::new(7.0, 7.0),
+            &images,
+            &layouts,
+        ));
+        assert!(!sprite_contains_world_point(
+            &sprite,
+            Anchor::CENTER,
+            &global,
+            Vec2::new(9.0, 0.0),
+            &images,
+            &layouts,
+        ));
+    }
+
+    #[test]
+    fn degenerate_scale_never_hits() {
+        let sprite = sprite_sized(Vec2::splat(10.0));
+        let transform = Transform::from_scale(Vec3::ZERO);
+
+        assert!(!hit(&sprite, Anchor::CENTER, transform, Vec2::ZERO));
     }
 }

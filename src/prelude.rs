@@ -10,11 +10,12 @@
 //! - [`InspectorExt`] - Extension trait for registering custom tabs
 //! - [`InspectorTab`] - Trait for implementing custom tabs
 //! - [`CrosshairConfig`] - Configuration for entity selection crosshair
+//! - [`PickingIgnore`] - Marker excluding an entity from viewport picking
 //! - [`egui_pointer_over_area`] - Run condition for blocking game input over panels
 
 pub use crate::{
     InspectorPlugin,
-    picking::CrosshairConfig,
+    picking::{CrosshairConfig, PickingIgnore},
     state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState},
     tabs::{
         ActiveCategory, BuiltinTab, DiagnosticsCounters, DockPosition, InspectorExt,

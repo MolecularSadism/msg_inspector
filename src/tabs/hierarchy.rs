@@ -89,7 +89,11 @@ fn render_filtered_hierarchy(
         });
 
         // Display results
-        ui.label(egui::RichText::new(format!("{} results", matching_entities.len())).weak().small());
+        ui.label(
+            egui::RichText::new(format!("{} results", matching_entities.len()))
+                .weak()
+                .small(),
+        );
         ui.add_space(4.0);
 
         if matching_entities.is_empty() {
