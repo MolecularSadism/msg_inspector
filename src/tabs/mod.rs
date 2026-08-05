@@ -7,11 +7,13 @@ mod game_view;
 mod gpu;
 mod hierarchy;
 mod inspector;
+pub(crate) mod relationships;
 mod resources;
 
 pub use diagnostics::{DiagnosticsCounters, FrameTimeHistory, update_frame_time_history};
 pub use entities::{ActiveCategory, EntitiesTabState, PrincipalRegistry, PrincipalTuple};
 pub use inspector::{InspectorSection, InspectorSectionRegistry, transform_section_ui};
+pub use relationships::{RelationshipEntry, RelationshipKind, collect_relationships};
 
 use std::any::TypeId;
 

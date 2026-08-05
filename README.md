@@ -13,6 +13,9 @@ This crate provides a registration-based API where game modules can locally decl
 ## Features
 
 - **Built-in tabs**: GameView, Hierarchy, Inspector, Resources, Assets, Diagnostics
+- **Relationship navigation**: The Inspector lists every relationship component on the selected
+  entity (`ChildOf`, `Children`, and any custom relationship) with a select button per referenced
+  entity, so inspection can follow the relationship graph
 - **Entity picking**: Alt+Left click inside the game viewport selects the topmost sprite under
   the cursor (Shift/Ctrl extends the selection); mark sprites with `PickingIgnore` to exclude them
 - **Viewport management**: Automatic camera viewport clipping to dock area
@@ -34,7 +37,7 @@ bevy = "0.18"
 |-----|-------------|
 | Game | The game viewport, clipped to not overlap with panels |
 | Hierarchy | Entity tree browser with search filtering |
-| Inspector | Entity component inspector using reflection |
+| Inspector | Entity component inspector using reflection, with relationship navigation |
 | Resources | Browse all registered resources |
 | Assets | Browse all loaded asset handles |
 | Diagnostics | FPS, frame time, and entity count metrics |
@@ -125,6 +128,29 @@ Use `egui_pointer_over_area` to prevent game clicks when the cursor is over pane
 ```rust
 app.add_systems(Update, my_click_system.run_if(not(egui_pointer_over_area)));
 ```
+
+## Relationship Navigation
+
+Inspecting a single entity shows a **Relationships** section above the component list. Each
+relationship component the entity carries gets its own group — `ChildOf` and `Children`, plus any
+component declared with `#[relationship]` / `#[relationship_target]` — listing the entities it
+references by name and id. Discovery is type-erased through Bevy's relationship accessors, so
+custom relationships show up without registering anything:
+
+```rust
+#[derive(Component)]
+#[relationship(relationship_target = Followers)]
+struct Follows(Entity);
+
+#[derive(Component)]
+#[relationship_target(relationship = Follows)]
+struct Followers(Vec<Entity>);
+```
+
+Click the `⏵` button next to an entry to make that entity the inspection target; hold Shift or
+Ctrl to add it to the current selection instead of replacing it. Arrows show the direction:
+`→` for a relationship pointing away from this entity, `←` for a target collection pointing back
+at it.
 
 ## Entity Picking
 

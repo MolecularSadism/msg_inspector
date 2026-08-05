@@ -9,6 +9,9 @@
 //! ## Features
 //!
 //! - **Built-in tabs**: `GameView`, Entities, Hierarchy, Inspector, Resources, Assets, Diagnostics
+//! - **Relationship navigation**: Every relationship component on the inspected entity
+//!   (`ChildOf`, `Children`, and any custom relationship) lists its referenced entities
+//!   with a button that makes one of them the inspection target
 //! - **Entity picking**: Alt+Left click inside the game viewport selects the topmost sprite
 //!   under the cursor (Shift/Ctrl extends the selection); mark sprites with
 //!   [`PickingIgnore`] to exclude them
@@ -23,7 +26,7 @@
 //! | Game | The game viewport, clipped to not overlap with panels |
 //! | Entities | Entity browser sorted by registered principal components |
 //! | Hierarchy | Entity tree browser with search filtering |
-//! | Inspector | Entity component inspector using reflection |
+//! | Inspector | Entity component inspector using reflection, with relationship navigation |
 //! | Resources | Browse all registered resources |
 //! | Assets | Browse all loaded asset handles |
 //! | Diagnostics | FPS, frame time, and entity count metrics |
@@ -132,7 +135,8 @@ pub use state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState}
 pub use tabs::{
     ActiveCategory, BuiltinTab, DiagnosticsCounters, DockPosition, FrameTimeHistory, InspectorExt,
     InspectorSection, InspectorSectionRegistry, InspectorTab, InspectorTabRegistry,
-    PrincipalRegistry, PrincipalTuple, Tab, transform_section_ui,
+    PrincipalRegistry, PrincipalTuple, RelationshipEntry, RelationshipKind, Tab,
+    collect_relationships, transform_section_ui,
 };
 pub use viewport::{InspectorMainCamera, egui_pointer_over_area, set_camera_viewport};
 
