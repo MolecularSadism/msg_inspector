@@ -96,8 +96,8 @@ pub fn render(
     ui: &mut egui::Ui,
     world: &mut World,
     type_registry: &TypeRegistry,
-    selected_entities: &SelectedEntities,
-    selection: &InspectorSelection,
+    selected_entities: &mut SelectedEntities,
+    selection: &mut InspectorSelection,
     inspector_search: &mut String,
 ) {
     match selection {
@@ -118,7 +118,10 @@ pub fn render(
                 return;
             }
 
-            match selected_entities.as_slice() {
+            // Copy the selection out so it can be mutated while rendering (relationship
+            // buttons change the inspection target).
+            let entities = selected_entities.as_slice().to_vec();
+            match entities.as_slice() {
                 &[entity] => {
                     // ── Entity name ──────────────────────────────────
                     let entity_name = world
@@ -130,6 +133,9 @@ pub fn render(
                     ui.heading(egui::RichText::new(&entity_name).strong());
                     ui.label(egui::RichText::new(format!("{entity:?}")).weak().small());
                     ui.add_space(4.0);
+
+                    // ── Relationships ────────────────────────────────
+                    super::relationships::render(ui, world, entity, selected_entities, selection);
 
                     // ── Custom sections ──────────────────────────────
                     render_custom_sections(ui, world, entity);
@@ -143,12 +149,7 @@ pub fn render(
                     super::search_bar(ui, "Filter components...", inspector_search);
                     let search_query = inspector_search.trim().to_string();
                     if !search_query.is_empty() {
-                        render_matching_components_list(
-                            ui,
-                            world,
-                            selected_entities,
-                            &search_query,
-                        );
+                        render_matching_components_list(ui, world, &entities, &search_query);
                         ui.separator();
                     }
                     ui_for_entity_with_children(world, entity, ui);
@@ -158,12 +159,7 @@ pub fn render(
                     ui.separator();
                     let search_query = inspector_search.trim().to_string();
                     if !search_query.is_empty() {
-                        render_matching_components_list(
-                            ui,
-                            world,
-                            selected_entities,
-                            &search_query,
-                        );
+                        render_matching_components_list(ui, world, entities, &search_query);
                         ui.separator();
                     }
                     ui_for_entities_shared_components(world, entities, ui);
@@ -171,11 +167,11 @@ pub fn render(
             }
         }
         InspectorSelection::Resource(type_id, name) => {
-            ui.label(name);
+            ui.label(name.as_str());
             bevy_inspector::by_type_id::ui_for_resource(world, *type_id, ui, name, type_registry);
         }
         InspectorSelection::Asset(type_id, name, handle) => {
-            ui.label(name);
+            ui.label(name.as_str());
             bevy_inspector::by_type_id::ui_for_asset(world, *type_id, *handle, ui, type_registry);
         }
     }
@@ -205,10 +201,9 @@ fn render_custom_sections(ui: &mut egui::Ui, world: &mut World, entity: Entity) 
 fn render_matching_components_list(
     ui: &mut egui::Ui,
     world: &World,
-    selected_entities: &SelectedEntities,
+    entities: &[Entity],
     search_query: &str,
 ) {
-    let entities = selected_entities.as_slice();
     if entities.is_empty() {
         return;
     }

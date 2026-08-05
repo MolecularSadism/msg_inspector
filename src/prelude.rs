@@ -11,6 +11,7 @@
 //! - [`InspectorTab`] - Trait for implementing custom tabs
 //! - [`CrosshairConfig`] - Configuration for entity selection crosshair
 //! - [`PickingIgnore`] - Marker excluding an entity from viewport picking
+//! - [`collect_relationships`] - Relationship components and their entities for an entity
 //! - [`egui_pointer_over_area`] - Run condition for blocking game input over panels
 
 pub use crate::{
@@ -20,7 +21,7 @@ pub use crate::{
     tabs::{
         ActiveCategory, BuiltinTab, DiagnosticsCounters, DockPosition, InspectorExt,
         InspectorSectionRegistry, InspectorTab, InspectorTabRegistry, PrincipalRegistry,
-        PrincipalTuple, Tab,
+        PrincipalTuple, RelationshipEntry, RelationshipKind, Tab, collect_relationships,
     },
     viewport::{InspectorMainCamera, egui_pointer_over_area},
 };
