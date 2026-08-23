@@ -125,14 +125,35 @@ fn parse_raw_value(text: &str, bits: u32) -> Option<u32> {
 
 /// Every named bit paired with its label, in ascending bit order; `label` is
 /// invoked exactly once per bit.
-fn named_bits<T>(label: &impl Fn(u32) -> Option<T>) -> Vec<(u32, T)> {
+///
+/// [`bitmask_field_with`] uses this to collect its labels once per frame;
+/// hosts building their own bit UIs can reuse it with [`named_mask`].
+///
+/// # Example
+///
+/// ```
+/// use msg_inspector::widgets::bitmask::named_bits;
+///
+/// let names = ["Ground", "Water"];
+/// let named = named_bits(&|bit| names.get(bit as usize).copied());
+/// assert_eq!(named, vec![(0, "Ground"), (1, "Water")]);
+/// ```
+pub fn named_bits<T>(label: &impl Fn(u32) -> Option<T>) -> Vec<(u32, T)> {
     (0..u32::BITS)
         .filter_map(|bit| label(bit).map(|name| (bit, name)))
         .collect()
 }
 
-/// The union of the collected named bits.
-fn named_mask<T>(named: &[(u32, T)]) -> u32 {
+/// The union of the bits collected by [`named_bits`].
+///
+/// # Example
+///
+/// ```
+/// use msg_inspector::widgets::bitmask::named_mask;
+///
+/// assert_eq!(named_mask(&[(0, "Ground"), (3, "Air")]), 0b1001);
+/// ```
+pub fn named_mask<T>(named: &[(u32, T)]) -> u32 {
     named.iter().fold(0, |mask, (bit, _)| mask | (1 << bit))
 }
 
