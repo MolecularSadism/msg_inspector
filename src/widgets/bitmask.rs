@@ -32,9 +32,7 @@ const MIN_WIDTH: f32 = 160.0;
 /// }
 /// ```
 pub fn bitmask_field(ui: &mut egui::Ui, bits: &mut u32, names: &[&str]) -> bool {
-    bitmask_field_with(ui, bits, |bit| {
-        names.get(bit as usize).map(|name| (*name).to_string())
-    })
+    bitmask_field_with(ui, bits, |bit| names.get(bit as usize).copied())
 }
 
 /// Edit a `u32` bitmask with per-bit toggles labelled by a closure.
@@ -47,29 +45,47 @@ pub fn bitmask_field(ui: &mut egui::Ui, bits: &mut u32, names: &[&str]) -> bool 
 /// - `All` / `None` buttons that set/clear every *named* bit, leaving unnamed
 ///   bits untouched;
 /// - one checkbox per bit for which `label` returns `Some`, in ascending bit
-///   order.
+///   order. `label` is called at most once per bit per frame, and may return
+///   any [`egui::WidgetText`] source (`&str`, `String`, [`egui::RichText`]).
+///
+/// While the raw-value field has keyboard focus, in-progress text that does
+/// not parse as a `u32` (an emptied field, a stray character) is kept as
+/// typed, so the value can be cleared and retyped; the field re-syncs with
+/// `bits` when focus is lost. The field's id is derived from the surrounding
+/// [`egui::Ui`], so hosts drawing more than one bitmask field in the same
+/// panel should wrap each call in [`egui::Ui::push_id`].
 ///
 /// Returns `true` when the mask changed this frame.
-pub fn bitmask_field_with(
+pub fn bitmask_field_with<T: Into<egui::WidgetText>>(
     ui: &mut egui::Ui,
     bits: &mut u32,
-    label: impl Fn(u32) -> Option<String>,
+    label: impl Fn(u32) -> Option<T>,
 ) -> bool {
     let mut changed = false;
 
-    let mut text = bits.to_string();
+    let field_id = ui.make_persistent_id("bitmask_raw_value");
+    let mut text = ui
+        .data_mut(|data| data.get_temp::<String>(field_id))
+        .unwrap_or_else(|| bits.to_string());
     let response = ui.add(
-        egui::TextEdit::singleline(&mut text).desired_width(ui.available_width().max(MIN_WIDTH)),
+        egui::TextEdit::singleline(&mut text)
+            .id(field_id)
+            .desired_width(ui.available_width().max(MIN_WIDTH)),
     );
     if response.changed()
-        && let Ok(parsed) = text.parse::<u32>()
-        && parsed != *bits
+        && let Some(parsed) = parse_raw_value(&text, *bits)
     {
         *bits = parsed;
         changed = true;
     }
+    if response.has_focus() {
+        ui.data_mut(|data| data.insert_temp(field_id, text));
+    } else {
+        ui.data_mut(|data| data.remove_temp::<String>(field_id));
+    }
 
-    let named_mask = named_bits(&label);
+    let named = named_bits(&label);
+    let named_mask = named_mask(&named);
 
     ui.horizontal(|ui| {
         if ui.button("All").clicked() && *bits | named_mask != *bits {
@@ -82,10 +98,7 @@ pub fn bitmask_field_with(
         }
     });
 
-    for bit in 0..u32::BITS {
-        let Some(name) = label(bit) else {
-            continue;
-        };
+    for (bit, name) in named {
         let mut set = *bits & (1 << bit) != 0;
         if ui.checkbox(&mut set, name).changed() {
             if set {
@@ -100,16 +113,33 @@ pub fn bitmask_field_with(
     changed
 }
 
-/// The union of all bits the label source names.
-fn named_bits(label: &impl Fn(u32) -> Option<String>) -> u32 {
+/// Parse an edited raw-value string into a replacement mask.
+///
+/// Returns `Some` only when the text is a valid `u32` that differs from the
+/// current bits, so in-progress edits that don't parse (an emptied field,
+/// stray characters, out-of-range values) and no-op edits leave the mask
+/// untouched.
+fn parse_raw_value(text: &str, bits: u32) -> Option<u32> {
+    text.parse::<u32>().ok().filter(|&parsed| parsed != bits)
+}
+
+/// Every named bit paired with its label, in ascending bit order; `label` is
+/// invoked exactly once per bit.
+fn named_bits<T>(label: &impl Fn(u32) -> Option<T>) -> Vec<(u32, T)> {
     (0..u32::BITS)
-        .filter(|&bit| label(bit).is_some())
-        .fold(0, |mask, bit| mask | (1 << bit))
+        .filter_map(|bit| label(bit).map(|name| (bit, name)))
+        .collect()
+}
+
+/// The union of the collected named bits.
+fn named_mask<T>(named: &[(u32, T)]) -> u32 {
+    named.iter().fold(0, |mask, (bit, _)| mask | (1 << bit))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::Cell;
 
     /// Runs one egui frame of the widget and returns (changed, bits after).
     fn run_frame(bits: u32, names: &[&str]) -> (bool, u32) {
@@ -146,8 +176,8 @@ mod tests {
         let _ = ctx.run(egui::RawInput::default(), |ctx| {
             egui::CentralPanel::default().show(ctx, |ui| {
                 changed = bitmask_field_with(ui, &mut bits, |bit| match bit {
-                    0 => Some("First".to_string()),
-                    31 => Some("Last".to_string()),
+                    0 => Some("First"),
+                    31 => Some("Last"),
                     _ => None,
                 });
             });
@@ -156,18 +186,58 @@ mod tests {
         assert_eq!(bits, 1 << 31);
     }
 
+    // Focus-driven editing (clear the field, retype, lose focus) is not
+    // simulated here: headless `RawInput` carries no reliable way to focus the
+    // text field and stream key events without an input-injection test
+    // harness, so the parse decision is covered as a pure function instead.
     #[test]
-    fn named_bits_unions_labelled_positions() {
-        let mask = named_bits(&|bit| match bit {
-            0 | 2 | 31 => Some(String::new()),
+    fn raw_value_parse_accepts_only_changed_valid_u32() {
+        assert_eq!(parse_raw_value("42", 7), Some(42));
+        assert_eq!(parse_raw_value("4294967295", 0), Some(u32::MAX));
+        assert_eq!(parse_raw_value("007", 0), Some(7));
+
+        // In-progress states that must not clobber the mask.
+        assert_eq!(parse_raw_value("", 7), None);
+        assert_eq!(parse_raw_value("-", 7), None);
+        assert_eq!(parse_raw_value("abc", 7), None);
+        assert_eq!(parse_raw_value("4294967296", 7), None);
+
+        // No-op edits report no change.
+        assert_eq!(parse_raw_value("7", 7), None);
+    }
+
+    #[test]
+    fn label_is_called_once_per_bit_per_frame() {
+        let ctx = egui::Context::default();
+        let calls = Cell::new(0u32);
+        let mut bits = 0b11;
+        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                bitmask_field_with(ui, &mut bits, |bit| {
+                    calls.set(calls.get() + 1);
+                    (bit < 2).then_some("named")
+                });
+            });
+        });
+        assert_eq!(calls.get(), u32::BITS);
+    }
+
+    #[test]
+    fn named_bits_collects_and_masks_labelled_positions() {
+        let named = named_bits(&|bit| match bit {
+            0 | 2 | 31 => Some("on"),
             _ => None,
         });
-        assert_eq!(mask, 0b101 | (1 << 31));
+        assert_eq!(
+            named.iter().map(|(bit, _)| *bit).collect::<Vec<_>>(),
+            vec![0, 2, 31]
+        );
+        assert_eq!(named_mask(&named), 0b101 | (1 << 31));
 
         let names = ["a", "b", "c"];
-        let mask = named_bits(&|bit| names.get(bit as usize).map(|n| (*n).to_string()));
-        assert_eq!(mask, 0b111);
+        let named = named_bits(&|bit| names.get(bit as usize).copied());
+        assert_eq!(named_mask(&named), 0b111);
 
-        assert_eq!(named_bits(&|_| None), 0);
+        assert_eq!(named_mask(&named_bits(&|_| None::<&str>)), 0);
     }
 }

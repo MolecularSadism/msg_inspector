@@ -13,6 +13,20 @@
 use bevy_egui::egui;
 
 /// One entry rendered as a card.
+///
+/// # Example
+///
+/// ```
+/// use msg_inspector::widgets::Card;
+///
+/// let card = Card {
+///     key: "torch".to_string(),
+///     name: "Torch".to_string(),
+///     ..Default::default()
+/// };
+/// assert_eq!(card.count, 0);
+/// ```
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Card {
     /// Stable string identifier, shown under the name. The caller uses this to
     /// map reported actions back to its own concrete ids.
@@ -33,9 +47,17 @@ pub struct Card {
 /// A button press reported back from [`draw_cards`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CardAction {
-    /// Decrease the amount by five.
+    /// Decrease the amount by five, clamping at zero.
+    ///
+    /// Reported at any non-zero amount, including amounts below five, so
+    /// callers must apply it with [`u32::saturating_sub`] (or an equivalent
+    /// clamp to zero), never a bare subtraction.
     Sub5,
-    /// Decrease the amount by one.
+    /// Decrease the amount by one, clamping at zero.
+    ///
+    /// Only reported at non-zero amounts, but applying it with
+    /// [`u32::saturating_sub`] keeps callers robust if their own state has
+    /// drifted from the drawn `count`.
     Sub1,
     /// Increase the amount by one.
     Add1,
@@ -51,27 +73,66 @@ pub enum CardAction {
 /// `show_place` adds a placement button to each card for hosts that support
 /// click-to-place.
 ///
+/// The `-1` and `-5` buttons are enabled at any non-zero amount, so
+/// [`CardAction::Sub5`] can be reported at amounts below five; apply
+/// decrements with [`u32::saturating_sub`] so they clamp to zero, as the
+/// example does.
+///
+/// The scroll area uses a fixed id; use [`draw_cards_with_salt`] to draw more
+/// than one card list in the same panel.
+///
 /// # Example
 ///
 /// ```
-/// use msg_inspector::widgets::{Card, draw_cards};
+/// use msg_inspector::widgets::{Card, CardAction, draw_cards};
 ///
-/// fn tab_ui(ui: &mut msg_inspector::egui::Ui, cards: &[Card]) {
+/// fn tab_ui(ui: &mut msg_inspector::egui::Ui, cards: &[Card], counts: &mut [u32]) {
 ///     for (index, action) in draw_cards(ui, cards, false) {
-///         // apply `action` to the entry behind `cards[index]`
-///         let _ = (index, action);
+///         counts[index] = match action {
+///             CardAction::Sub5 => counts[index].saturating_sub(5),
+///             CardAction::Sub1 => counts[index].saturating_sub(1),
+///             CardAction::Add1 => counts[index] + 1,
+///             CardAction::Add5 => counts[index] + 5,
+///             CardAction::Place => counts[index],
+///         };
 ///     }
 /// }
 /// ```
+#[must_use = "the returned actions must be applied by the caller for the buttons to do anything"]
 pub fn draw_cards(ui: &mut egui::Ui, cards: &[Card], show_place: bool) -> Vec<(usize, CardAction)> {
+    draw_cards_with_salt(ui, cards, show_place, "msg_inspector_cards")
+}
+
+/// Like [`draw_cards`], with a caller-chosen scroll-area id salt so several
+/// card lists can share one panel without their scroll offsets clashing.
+///
+/// # Example
+///
+/// ```
+/// use msg_inspector::widgets::{Card, draw_cards_with_salt};
+///
+/// fn tab_ui(ui: &mut msg_inspector::egui::Ui, primary: &[Card], secondary: &[Card]) {
+///     let primary_actions = draw_cards_with_salt(ui, primary, false, "primary");
+///     let secondary_actions = draw_cards_with_salt(ui, secondary, false, "secondary");
+///     let _ = (primary_actions, secondary_actions);
+/// }
+/// ```
+#[must_use = "the returned actions must be applied by the caller for the buttons to do anything"]
+pub fn draw_cards_with_salt(
+    ui: &mut egui::Ui,
+    cards: &[Card],
+    show_place: bool,
+    id_salt: impl std::hash::Hash,
+) -> Vec<(usize, CardAction)> {
     let mut actions = Vec::new();
 
     if cards.is_empty() {
-        ui.colored_label(egui::Color32::YELLOW, "Nothing loaded yet.");
+        ui.weak("No entries to show.");
         return actions;
     }
 
     egui::ScrollArea::vertical()
+        .id_salt(id_salt)
         .auto_shrink([false, false])
         .show(ui, |ui| {
             let mut current_group: Option<&str> = None;
@@ -108,7 +169,7 @@ fn draw_one_card(ui: &mut egui::Ui, card: &Card, show_place: bool) -> Option<Car
             ui.vertical(|ui| {
                 let mut title = egui::RichText::new(&card.name).strong();
                 if card.hidden {
-                    title = title.italics().color(egui::Color32::LIGHT_GRAY);
+                    title = title.italics().color(ui.visuals().weak_text_color());
                 }
                 ui.label(title);
                 ui.weak(format!("{}  ·  tier {}", card.key, card.tier));
@@ -244,6 +305,18 @@ mod tests {
     #[test]
     fn empty_list_renders_placeholder() {
         assert!(run_frame(&[], false).is_empty());
+    }
+
+    #[test]
+    fn salted_lists_share_a_panel() {
+        let ctx = egui::Context::default();
+        let cards = [card("Alpha Beast", "Creatures", 2)];
+        let _ = ctx.run(egui::RawInput::default(), |ctx| {
+            egui::CentralPanel::default().show(ctx, |ui| {
+                assert!(draw_cards_with_salt(ui, &cards, false, "primary").is_empty());
+                assert!(draw_cards_with_salt(ui, &cards, false, "secondary").is_empty());
+            });
+        });
     }
 
     #[test]

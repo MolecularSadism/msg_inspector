@@ -8,4 +8,4 @@ pub mod bitmask;
 pub mod cards;
 
 pub use bitmask::{bitmask_field, bitmask_field_with};
-pub use cards::{Card, CardAction, draw_cards};
+pub use cards::{Card, CardAction, draw_cards, draw_cards_with_salt};
