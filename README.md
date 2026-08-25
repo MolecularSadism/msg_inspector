@@ -175,7 +175,7 @@ Press the **Delete** key to toggle the inspector panel visibility.
 
 | `msg_inspector` | Bevy |
 |-----------------|------|
-| 0.4             | 0.18 |
+| 0.4-0.6         | 0.18 |
 | 0.3             | 0.18 |
 | 0.2             | 0.17 |
 | 0.1             | 0.16 |
