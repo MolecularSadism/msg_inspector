@@ -114,6 +114,7 @@ pub mod prelude;
 mod state;
 pub mod tabs;
 mod viewport;
+pub mod widgets;
 
 use std::sync::Mutex;
 
@@ -139,6 +140,9 @@ pub use tabs::{
     collect_relationships, transform_section_ui,
 };
 pub use viewport::{InspectorMainCamera, egui_pointer_over_area, set_camera_viewport};
+pub use widgets::{
+    Card, CardAction, bitmask_field, bitmask_field_with, draw_cards, draw_cards_with_salt,
+};
 
 // Re-export egui so consumers don't need to depend on bevy-inspector-egui directly
 pub use bevy_inspector_egui::egui;

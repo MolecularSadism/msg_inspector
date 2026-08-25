@@ -41,3 +41,8 @@ bevy = { version = "0.18", default-features = false, features = [
     "bevy_state",
     "bevy_text",
 ] }
+criterion = "0.7"
+
+[[bench]]
+name = "bitmask"
+harness = false

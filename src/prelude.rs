@@ -24,4 +24,7 @@ pub use crate::{
         PrincipalTuple, RelationshipEntry, RelationshipKind, Tab, collect_relationships,
     },
     viewport::{InspectorMainCamera, egui_pointer_over_area},
+    widgets::{
+        Card, CardAction, bitmask_field, bitmask_field_with, draw_cards, draw_cards_with_salt,
+    },
 };
