@@ -167,7 +167,7 @@ pub(crate) fn render(
     }
 
     egui::CollapsingHeader::new(egui::RichText::new("Relationships").strong())
-        .default_open(true)
+        .default_open(false)
         .show(ui, |ui| {
             for entry in &entries {
                 render_entry(ui, world, entry, selected_entities, selection);
@@ -192,7 +192,7 @@ fn render_entry(
 
     egui::CollapsingHeader::new(header)
         .id_salt(entry.component_id)
-        .default_open(true)
+        .default_open(false)
         .show(ui, |ui| {
             ui.label(egui::RichText::new(entry.kind.description()).weak().small());
 

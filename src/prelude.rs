@@ -12,10 +12,12 @@
 //! - [`CrosshairConfig`] - Configuration for entity selection crosshair
 //! - [`PickingIgnore`] - Marker excluding an entity from viewport picking
 //! - [`collect_relationships`] - Relationship components and their entities for an entity
+//! - [`BitmaskRegistry`] - Named bitmask layers registered from reflected enums
+//! - [`bitmask_field_layers`] - Wide bitmask editor with a checkbox per layer
 //! - [`egui_pointer_over_area`] - Run condition for blocking game input over panels
 
 pub use crate::{
-    InspectorPlugin,
+    BitmaskRegistry, InspectorPlugin,
     picking::{CrosshairConfig, PickingIgnore},
     state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState},
     tabs::{
@@ -25,6 +27,7 @@ pub use crate::{
     },
     viewport::{InspectorMainCamera, egui_pointer_over_area},
     widgets::{
-        Card, CardAction, bitmask_field, bitmask_field_with, draw_cards, draw_cards_with_salt,
+        BitmaskLayers, Card, CardAction, bitmask_field, bitmask_field_layers, bitmask_field_with,
+        draw_cards, draw_cards_with_salt,
     },
 };

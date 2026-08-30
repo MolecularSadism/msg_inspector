@@ -18,6 +18,8 @@
 //! - **Viewport management**: Automatic camera viewport clipping to dock area
 //! - **Tab registration**: Games can register custom tabs via [`InspectorExt`] trait
 //! - **Custom counters**: Track component counts in the Diagnostics tab via [`InspectorPlugin::with_counter`]
+//! - **Bitmask layer widget**: [`bitmask_field_layers`] edits a `u32` bitmask with a checkbox per
+//!   layer — bit indices, or names from a reflected enum registered via [`InspectorExt::register_bitmask_enum`]
 //!
 //! ## Built-in Tabs
 //!
@@ -108,6 +110,7 @@
 //!
 //! Press the **Delete** key to toggle the inspector panel visibility.
 
+mod bitmask_registry;
 mod panel;
 mod picking;
 pub mod prelude;
@@ -128,6 +131,7 @@ use bevy::{
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 
+pub use bitmask_registry::{BitmaskRegistry, NotAnEnum};
 pub use panel::show_ui_system;
 pub use picking::{
     CrosshairConfig, PickingIgnore, handle_picking_clicks, update_picked_entity_marker,
@@ -141,7 +145,8 @@ pub use tabs::{
 };
 pub use viewport::{InspectorMainCamera, egui_pointer_over_area, set_camera_viewport};
 pub use widgets::{
-    Card, CardAction, bitmask_field, bitmask_field_with, draw_cards, draw_cards_with_salt,
+    BitmaskLayers, Card, CardAction, bitmask_field, bitmask_field_layers, bitmask_field_with,
+    draw_cards, draw_cards_with_salt,
 };
 
 // Re-export egui so consumers don't need to depend on bevy-inspector-egui directly
@@ -273,6 +278,7 @@ impl Plugin for InspectorPlugin {
             .init_resource::<InspectorTabRegistry>()
             .init_resource::<PrincipalRegistry>()
             .init_resource::<InspectorSectionRegistry>()
+            .init_resource::<BitmaskRegistry>()
             .init_resource::<picking::CrosshairConfig>()
             .init_resource::<tabs::FrameTimeHistory>();
 
