@@ -150,6 +150,38 @@ fn _compile_test_custom_tab_registration() {
     registry.register(TestTab);
 }
 
+#[test]
+fn test_bitmask_layers_from_names_public_api() {
+    let layers = BitmaskLayers::from_names("Physics", ["Ground", "Water", "Air"]);
+    assert_eq!(layers.name(), "Physics");
+    assert_eq!(layers.label(1), Some("Water"));
+    assert_eq!(layers.label(3), None);
+    assert_eq!(layers.mask(), 0b111);
+    assert_eq!(layers.len(), 3);
+}
+
+#[test]
+fn test_register_bitmask_enum_via_app() {
+    #[derive(Reflect)]
+    enum PhysicsLayer {
+        Ground,
+        Water,
+        Air,
+    }
+
+    // The App extension only needs the registry resource, not the full plugin.
+    let mut app = App::new();
+    app.init_resource::<BitmaskRegistry>();
+    app.register_bitmask_enum::<PhysicsLayer>();
+
+    let registry = app.world().resource::<BitmaskRegistry>();
+    let layers = registry.get::<PhysicsLayer>().expect("enum was registered");
+    assert_eq!(layers.name(), "PhysicsLayer");
+    assert_eq!(layers.label(0), Some("Ground"));
+    assert_eq!(layers.label(2), Some("Air"));
+    assert_eq!(layers.mask(), 0b111);
+}
+
 /// Compile-time verification that with_counter API works.
 #[allow(dead_code)]
 fn _compile_test_with_counter() {

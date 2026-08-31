@@ -20,6 +20,8 @@ This crate provides a registration-based API where game modules can locally decl
   the cursor (Shift/Ctrl extends the selection); mark sprites with `PickingIgnore` to exclude them
 - **Viewport management**: Automatic camera viewport clipping to dock area
 - **Tab registration**: Games can register custom tabs via `InspectorExt` trait
+- **Bitmask layer widget**: `bitmask_field_layers` edits a `u32` bitmask with a checkbox per layer —
+  bare bit indices, or names from a reflected enum registered via `register_bitmask_enum`
 
 ## Installation
 
@@ -27,7 +29,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-msg_inspector = { git = "https://github.com/MolecularSadism/msg_inspector", tag = "v0.3.0" }
+msg_inspector = { git = "https://github.com/MolecularSadism/msg_inspector", tag = "v0.7.0" }
 bevy = "0.18"
 ```
 
@@ -121,6 +123,40 @@ app.add_plugins(
 );
 ```
 
+## Bitmask Layer Widget
+
+`bitmask_field_layers` edits a `u32` bitmask with one checkbox per layer, under a header that starts
+folded to save panel space. Without a layer set it labels every bit `0..32` by index; with one it
+shows the named layers. Register a reflected enum whose variants are declared in bit order (variant 0
+→ bit 0) as a named set, then look it up where you draw the widget:
+
+```rust
+use bevy::prelude::*;
+use msg_inspector::prelude::*;
+
+#[derive(Reflect)]
+enum PhysicsLayer {
+    Ground, // bit 0
+    Water,  // bit 1
+    Air,    // bit 2
+}
+
+// At app setup:
+app.add_plugins(InspectorPlugin::default())
+    .register_bitmask_enum::<PhysicsLayer>();
+
+// Where you draw the field (a tab, section, or custom InspectorEguiImpl):
+fn edit_mask(ui: &mut egui::Ui, bits: &mut u32, registry: &BitmaskRegistry) {
+    bitmask_field_layers(ui, bits, registry.get::<PhysicsLayer>());
+}
+```
+
+For a bit-to-name mapping that is not a contiguous `0..n` run (a layer enum with explicit
+discriminants, or names drawn from a *different* type than the field being edited), build the set by
+hand with `BitmaskLayers::from_labels` and store it with `BitmaskRegistry::register`. The lower-level
+`bitmask_field` / `bitmask_field_with` draw only the named bits inline, without the collapsing
+header. See the `bitmask_layers` example for a full app.
+
 ## Blocking Game Input Over Panels
 
 Use `egui_pointer_over_area` to prevent game clicks when the cursor is over panels:
@@ -134,8 +170,9 @@ app.add_systems(Update, my_click_system.run_if(not(egui_pointer_over_area)));
 Inspecting a single entity shows a **Relationships** section above the component list. Each
 relationship component the entity carries gets its own group — `ChildOf` and `Children`, plus any
 component declared with `#[relationship]` / `#[relationship_target]` — listing the entities it
-references by name and id. Discovery is type-erased through Bevy's relationship accessors, so
-custom relationships show up without registering anything:
+references by name and id. The section and every relationship in it start collapsed to save space;
+expand one to see its referenced entities. Discovery is type-erased through Bevy's relationship
+accessors, so custom relationships show up without registering anything:
 
 ```rust
 #[derive(Component)]
@@ -175,7 +212,7 @@ Press the **Delete** key to toggle the inspector panel visibility.
 
 | `msg_inspector` | Bevy |
 |-----------------|------|
-| 0.4-0.6         | 0.18 |
+| 0.4-0.7         | 0.18 |
 | 0.3             | 0.18 |
 | 0.2             | 0.17 |
 | 0.1             | 0.16 |

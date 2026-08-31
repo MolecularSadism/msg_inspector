@@ -18,9 +18,11 @@ pub use relationships::{RelationshipEntry, RelationshipKind, collect_relationshi
 use std::any::TypeId;
 
 use bevy::prelude::*;
+use bevy::reflect::{TypePath, Typed};
 use bevy_egui::egui;
 use bevy_inspector_egui::bevy_inspector::hierarchy::SelectedEntities;
 
+use crate::BitmaskRegistry;
 use crate::state::InspectorSelection;
 
 /// Render a consistent search/filter bar with hint text and a clear button.
@@ -374,6 +376,37 @@ pub trait InspectorExt {
         title: &str,
         render_fn: impl Fn(&mut egui::Ui, &mut World, Entity) + Send + Sync + 'static,
     ) -> &mut Self;
+
+    /// Register a reflected enum as a named bitmask layer set for the wide
+    /// bitmask widget ([`bitmask_field_layers`](crate::bitmask_field_layers)).
+    ///
+    /// Variant `i` (declaration order) names bit `i`, so this fits a
+    /// bitflags-style enum declared in bit order. The set lands in the
+    /// [`BitmaskRegistry`] resource, keyed by `E`; look it up at a widget call
+    /// site with [`BitmaskRegistry::get`]. A type whose
+    /// reflected form is not an enum is skipped; call
+    /// [`BitmaskRegistry::register_enum`] directly for the `Result` if you need
+    /// to detect that.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use bevy::prelude::*;
+    /// use msg_inspector::prelude::*;
+    ///
+    /// #[derive(Reflect)]
+    /// enum PhysicsLayer {
+    ///     Ground,
+    ///     Water,
+    ///     Air,
+    /// }
+    ///
+    /// fn plugin(app: &mut App) {
+    ///     app.add_plugins(InspectorPlugin::default());
+    ///     app.register_bitmask_enum::<PhysicsLayer>();
+    /// }
+    /// ```
+    fn register_bitmask_enum<E: Typed + TypePath>(&mut self) -> &mut Self;
 }
 
 impl InspectorExt for App {
@@ -485,6 +518,16 @@ impl InspectorExt for App {
                 title: title.to_string(),
                 render_fn: Box::new(render_fn),
             });
+        self
+    }
+
+    fn register_bitmask_enum<E: Typed + TypePath>(&mut self) -> &mut Self {
+        // A non-enum type is skipped; `BitmaskRegistry::register_enum` returns the
+        // error for callers that want to detect it.
+        let _ = self
+            .world_mut()
+            .resource_mut::<BitmaskRegistry>()
+            .register_enum::<E>();
         self
     }
 }
