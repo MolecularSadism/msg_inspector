@@ -1,11 +1,9 @@
 //! Entity picking systems for selecting entities in the viewport.
 //!
 //! Alt+Left click inside the Game tab selects the topmost sprite under the
-//! cursor for the Inspector tab (Shift/Ctrl extends the selection). The pick
-//! is routed through the [`InspectorMainCamera`], whose viewport
-//! [`set_camera_viewport`](crate::set_camera_viewport) shrinks to the Game
-//! tab's rect, so picks land on the world position the game view shows rather
-//! than where the cursor sits on the full window.
+//! cursor for the Inspector tab (Shift/Ctrl extends the selection). The cursor
+//! is mapped from the Game tab into the game's own pixels through
+//! [`GameViewportRect`], then projected through the [`InspectorMainCamera`].
 
 use bevy::{
     ecs::system::SystemParam,
@@ -138,16 +136,14 @@ pub fn handle_picking_clicks(
     if !enabled.0 || !alt_held || !scene.mouse_buttons.just_pressed(MouseButton::Left) {
         return;
     }
-    let Some(cursor) = scene.window.cursor_position() else {
+    let Some(cursor) = scene
+        .window
+        .cursor_position()
+        .and_then(|cursor| viewport_rect.to_game(cursor))
+    else {
         return;
     };
-    if !viewport_rect.contains(cursor.x, cursor.y) {
-        return;
-    }
 
-    // `viewport_to_world_2d` subtracts the camera's logical viewport offset
-    // internally, so the raw window cursor position is already correct even
-    // when the inspector has shrunk the camera to the Game tab.
     let (camera, camera_transform) = *scene.camera;
     let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, cursor) else {
         return;

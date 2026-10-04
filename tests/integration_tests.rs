@@ -17,6 +17,7 @@ fn test_game_viewport_rect_default_values() {
     assert_eq!(rect.min_y, 0.0);
     assert_eq!(rect.max_x, f32::MAX);
     assert_eq!(rect.max_y, f32::MAX);
+    assert_eq!(rect.game_pixels_per_window_pixel, 1.0);
 }
 
 #[test]
@@ -26,6 +27,7 @@ fn test_game_viewport_rect_contains() {
         min_y: 20.0,
         max_x: 100.0,
         max_y: 200.0,
+        game_pixels_per_window_pixel: 1.0,
     };
 
     // Inside the rect
@@ -38,6 +40,31 @@ fn test_game_viewport_rect_contains() {
     assert!(!rect.contains(50.0, 10.0)); // Above min_y
     assert!(!rect.contains(150.0, 100.0)); // Right of max_x
     assert!(!rect.contains(50.0, 250.0)); // Below max_y
+}
+
+#[test]
+fn test_game_viewport_rect_maps_window_to_game_pixels() {
+    let rect = GameViewportRect {
+        min_x: 100.0,
+        min_y: 50.0,
+        max_x: 500.0,
+        max_y: 275.0,
+        game_pixels_per_window_pixel: 2.0,
+    };
+
+    assert_eq!(rect.to_game(Vec2::new(100.0, 50.0)), Some(Vec2::ZERO));
+    assert_eq!(
+        rect.to_game(Vec2::new(500.0, 275.0)),
+        Some(Vec2::new(800.0, 450.0))
+    );
+    assert_eq!(rect.to_game(Vec2::new(99.0, 60.0)), None);
+}
+
+#[test]
+fn test_game_viewport_rect_default_maps_identity() {
+    let rect = GameViewportRect::default();
+    let cursor = Vec2::new(320.0, 240.0);
+    assert_eq!(rect.to_game(cursor), Some(cursor));
 }
 
 #[test]

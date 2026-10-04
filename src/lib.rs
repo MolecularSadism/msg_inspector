@@ -15,7 +15,9 @@
 //! - **Entity picking**: Alt+Left click inside the game viewport selects the topmost sprite
 //!   under the cursor (Shift/Ctrl extends the selection); mark sprites with
 //!   [`PickingIgnore`] to exclude them
-//! - **Viewport management**: Automatic camera viewport clipping to dock area
+//! - **Game view**: While the panel is open, every primary-window camera renders into a
+//!   window-sized [`GameViewImage`] shown letterboxed in the Game tab, so the game keeps its
+//!   full-window layout and picking pointers are mapped into it
 //! - **Tab registration**: Games can register custom tabs via [`InspectorExt`] trait
 //! - **Custom counters**: Track component counts in the Diagnostics tab via [`InspectorPlugin::with_counter`]
 //! - **Bitmask layer widget**: [`bitmask_field_layers`] edits a `u32` bitmask with a checkbox per
@@ -25,7 +27,7 @@
 //!
 //! | Tab | Description |
 //! |-----|-------------|
-//! | Game | The game viewport, clipped to not overlap with panels |
+//! | Game | The game's full-window render, scaled to fit the tab |
 //! | Entities | Entity browser sorted by registered principal components |
 //! | Hierarchy | Entity tree browser with search filtering |
 //! | Inspector | Entity component inspector using reflection, with relationship navigation |
@@ -40,7 +42,7 @@
 //! use msg_inspector::prelude::*;
 //!
 //! fn setup(mut commands: Commands) {
-//!     // Mark your main camera for viewport management
+//!     // Mark the camera entity picking projects through
 //!     commands.spawn((Camera2d, InspectorMainCamera));
 //! }
 //!
@@ -143,7 +145,7 @@ pub use tabs::{
     PrincipalRegistry, PrincipalTuple, RelationshipEntry, RelationshipKind, Tab,
     collect_relationships, transform_section_ui,
 };
-pub use viewport::{InspectorMainCamera, egui_pointer_over_area, set_camera_viewport};
+pub use viewport::{GameViewImage, InspectorMainCamera, egui_pointer_over_area};
 pub use widgets::{
     BitmaskLayers, Card, CardAction, bitmask_field, bitmask_field_layers, bitmask_field_with,
     draw_cards, draw_cards_with_salt,
@@ -282,6 +284,8 @@ impl Plugin for InspectorPlugin {
             .init_resource::<picking::CrosshairConfig>()
             .init_resource::<tabs::FrameTimeHistory>();
 
+        viewport::plugin(app);
+
         // Built-in inspector sections
         app.register_inspector_section::<Transform>("Transform", transform_section_ui);
 
@@ -294,7 +298,6 @@ impl Plugin for InspectorPlugin {
                 bevy_inspector_egui::bevy_egui::EguiPrimaryContextPass,
                 show_ui_system,
             )
-            .add_systems(PostUpdate, set_camera_viewport.after(show_ui_system))
             .add_systems(Update, panel::toggle_inspector)
             .add_systems(Update, handle_picking_clicks)
             .add_systems(Update, update_picked_entity_marker)

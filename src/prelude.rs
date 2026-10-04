@@ -6,7 +6,7 @@
 //!
 //! This prelude includes:
 //! - [`InspectorPlugin`] - The main plugin to add to your app
-//! - [`InspectorMainCamera`] - Marker component for viewport management
+//! - [`InspectorMainCamera`] - Marker for the camera entity picking projects through
 //! - [`InspectorExt`] - Extension trait for registering custom tabs
 //! - [`InspectorTab`] - Trait for implementing custom tabs
 //! - [`CrosshairConfig`] - Configuration for entity selection crosshair

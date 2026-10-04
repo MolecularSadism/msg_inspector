@@ -4,7 +4,7 @@ use bevy::{camera::visibility::RenderLayers, prelude::*};
 use bevy_egui::EguiGlobalSettings;
 use bevy_egui::{EguiContext, PrimaryEguiContext};
 
-use crate::state::{GameViewportRect, InspectorEnabled, UiState};
+use crate::state::{InspectorEnabled, UiState};
 
 /// System that renders the inspector UI.
 pub fn show_ui_system(world: &mut World) {
@@ -25,16 +25,8 @@ pub fn show_ui_system(world: &mut World) {
 
     world.resource_scope::<UiState, _>(|world, mut ui_state| {
         ui_state.ui(world, egui_context.get_mut());
-
-        // Export viewport rect for input handling
-        if let Some(mut viewport_res) = world.get_resource_mut::<GameViewportRect>() {
-            let rect = ui_state.viewport_rect;
-            viewport_res.min_x = rect.min.x;
-            viewport_res.min_y = rect.min.y;
-            viewport_res.max_x = rect.max.x;
-            viewport_res.max_y = rect.max.y;
-        }
     });
+    crate::viewport::export_game_viewport_rect(world);
 }
 
 /// System to toggle the inspector panel visibility.
