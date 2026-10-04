@@ -36,7 +36,7 @@ pub fn render(
         .collect();
 
     if search_query.is_empty() {
-        resources.sort_by(|(name_a, _, _), (name_b, _, _)| name_a.cmp(name_b));
+        resources.sort_by_key(|(name, _, _)| *name);
     } else {
         resources.sort_by(|(_, _, a), (_, _, b)| b.cmp(a));
     }

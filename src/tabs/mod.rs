@@ -660,7 +660,7 @@ impl egui_dock::TabViewer for TabViewer<'_> {
 
                 match builtin {
                     BuiltinTab::GameView => {
-                        game_view::render(ui, self.viewport_rect);
+                        game_view::render(ui, self.world, self.viewport_rect);
                     }
                     BuiltinTab::Entities => {
                         entities::render(

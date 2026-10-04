@@ -18,7 +18,10 @@ This crate provides a registration-based API where game modules can locally decl
   entity, so inspection can follow the relationship graph
 - **Entity picking**: Alt+Left click inside the game viewport selects the topmost sprite under
   the cursor (Shift/Ctrl extends the selection); mark sprites with `PickingIgnore` to exclude them
-- **Viewport management**: Automatic camera viewport clipping to dock area
+- **Game view**: While the panel is open, every camera rendering to the primary window renders
+  into a window-sized image instead, shown letterboxed in the Game tab. The game keeps its
+  full-window resolution and layout, and picking pointers are mapped into the image, so UI hover,
+  clicks and screen-space effects need no inspector-specific handling
 - **Tab registration**: Games can register custom tabs via `InspectorExt` trait
 - **Bitmask layer widget**: `bitmask_field_layers` edits a `u32` bitmask with a checkbox per layer —
   bare bit indices, or names from a reflected enum registered via `register_bitmask_enum`
@@ -29,7 +32,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-msg_inspector = { git = "https://github.com/MolecularSadism/msg_inspector", tag = "v0.7.0" }
+msg_inspector = { git = "https://github.com/MolecularSadism/msg_inspector", tag = "v0.8.0" }
 bevy = "0.18"
 ```
 
@@ -37,7 +40,7 @@ bevy = "0.18"
 
 | Tab | Description |
 |-----|-------------|
-| Game | The game viewport, clipped to not overlap with panels |
+| Game | The game's full-window render, scaled to fit the tab |
 | Hierarchy | Entity tree browser with search filtering |
 | Inspector | Entity component inspector using reflection, with relationship navigation |
 | Resources | Browse all registered resources |
@@ -59,7 +62,7 @@ fn main() {
 }
 
 fn setup(mut commands: Commands) {
-    // Mark your main camera for viewport management
+    // Mark the camera entity picking projects through
     commands.spawn((
         Camera2d,
         InspectorMainCamera,
@@ -165,6 +168,11 @@ Use `egui_pointer_over_area` to prevent game clicks when the cursor is over pane
 app.add_systems(Update, my_click_system.run_if(not(egui_pointer_over_area)));
 ```
 
+Picking pointers (`PointerLocation`) are already mapped into the game image, so anything driven by
+`bevy_picking` — UI hover and clicks included — needs nothing else. Code that reads
+`Window::cursor_position` directly gets window coordinates; map them into the game's own logical
+pixels with `GameViewportRect::to_game`, which returns `None` over the panels.
+
 ## Relationship Navigation
 
 Inspecting a single entity shows a **Relationships** section above the component list. Each
@@ -193,8 +201,8 @@ at it.
 
 Hold **Alt** and left-click inside the game viewport to select the topmost sprite under the
 cursor; hold Shift or Ctrl as well to extend the current selection. Plain left clicks are left
-to the game. Picking uses the camera marked `InspectorMainCamera`, so it stays accurate while
-the viewport is clipped to the Game tab, and tests sprites in their local frame — rotation,
+to the game. Picking maps the cursor from the Game tab into the game image and projects it through the
+camera marked `InspectorMainCamera`, and tests sprites in their local frame — rotation,
 scale, anchors, sprite rects, and texture-atlas frames all count.
 
 Sprites that cover the view without being useful pick targets (a camera-following, screen-sized
@@ -212,7 +220,7 @@ Press the **Delete** key to toggle the inspector panel visibility.
 
 | `msg_inspector` | Bevy |
 |-----------------|------|
-| 0.4-0.7         | 0.18 |
+| 0.4-0.8         | 0.18 |
 | 0.3             | 0.18 |
 | 0.2             | 0.17 |
 | 0.1             | 0.16 |

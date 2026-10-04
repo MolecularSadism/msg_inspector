@@ -59,15 +59,19 @@ impl Default for InspectorEnabled {
     }
 }
 
-/// Stores the game viewport rectangle in screen/egui coordinates.
+/// Where the Game tab shows the game, in window logical pixels.
 ///
-/// Used to determine if the mouse is over the game area vs egui panels.
+/// Used to tell the game view from the dock panels and to map window cursor
+/// positions into the game's own pixels: the game renders at the window's
+/// logical size and is shown scaled into this rect.
 #[derive(Resource, Clone, Copy, Debug)]
 pub struct GameViewportRect {
     pub min_x: f32,
     pub min_y: f32,
     pub max_x: f32,
     pub max_y: f32,
+    /// Game logical pixels per window logical pixel inside the rect.
+    pub game_pixels_per_window_pixel: f32,
 }
 
 impl Default for GameViewportRect {
@@ -77,6 +81,7 @@ impl Default for GameViewportRect {
             min_y: 0.0,
             max_x: f32::MAX,
             max_y: f32::MAX,
+            game_pixels_per_window_pixel: 1.0,
         }
     }
 }
@@ -86,6 +91,15 @@ impl GameViewportRect {
     #[must_use]
     pub fn contains(&self, x: f32, y: f32) -> bool {
         x >= self.min_x && x <= self.max_x && y >= self.min_y && y <= self.max_y
+    }
+
+    /// Maps a window logical position to the game's logical position, or `None`
+    /// when it lies outside the game view.
+    #[must_use]
+    pub fn to_game(&self, window_pos: Vec2) -> Option<Vec2> {
+        self.contains(window_pos.x, window_pos.y).then(|| {
+            (window_pos - Vec2::new(self.min_x, self.min_y)) * self.game_pixels_per_window_pixel
+        })
     }
 }
 
@@ -105,7 +119,7 @@ pub enum InspectorSelection {
 pub struct UiState {
     /// The dock state managing tab layout.
     pub state: DockState<Tab>,
-    /// Current viewport rectangle for the game view.
+    /// Where the Game tab shows the game image, in egui points.
     pub viewport_rect: egui::Rect,
     /// Currently selected entities.
     pub selected_entities: SelectedEntities,

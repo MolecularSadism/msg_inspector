@@ -26,7 +26,7 @@ pub fn render(
             ))
         })
         .collect();
-    assets.sort_by(|(name_a, ..), (name_b, ..)| name_a.cmp(name_b));
+    assets.sort_by_key(|(name, ..)| *name);
 
     if assets.is_empty() {
         ui.add_space(20.0);
