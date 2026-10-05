@@ -7,13 +7,20 @@
 //! post-processing and screen-space effects work as they do without the
 //! inspector. The Game tab shows the image letterboxed into whatever room the
 //! dock leaves, and picking pointers over it are mapped back into the image so
-//! UI hover and clicks land where they are drawn.
+//! UI hover and clicks land where they are drawn. UI drawn into the image gets
+//! its [`RelativeCursorPosition`] from the same mapped cursor.
 
 use bevy::{
     camera::{CameraUpdateSystems, ImageRenderTarget, NormalizedRenderTarget, RenderTarget},
+    ecs::system::SystemParam,
+    input::touch::Touches,
     picking::{PickingSystems, pointer::PointerLocation},
     prelude::*,
     render::render_resource::{Extent3d, TextureFormat},
+    ui::{
+        ComputedUiTargetCamera, OverrideClip, RelativeCursorPosition, UiGlobalTransform, UiSystems,
+        clip_check_recursive,
+    },
     window::{PrimaryWindow, Window, WindowRef},
 };
 use bevy_egui::{EguiContextSettings, EguiTextureHandle, EguiUserTextures, PrimaryEguiContext};
@@ -72,9 +79,12 @@ pub(crate) fn plugin(app: &mut App) {
         )
         .add_systems(
             PreUpdate,
-            retarget_window_pointers
-                .after(PickingSystems::ProcessInput)
-                .before(PickingSystems::Backend),
+            (
+                retarget_window_pointers
+                    .after(PickingSystems::ProcessInput)
+                    .before(PickingSystems::Backend),
+                relative_cursor_on_game_view.after(UiSystems::Focus),
+            ),
         );
 }
 
@@ -200,6 +210,83 @@ fn retarget_window_pointers(
     }
 }
 
+/// UI nodes whose [`RelativeCursorPosition`] [`relative_cursor_on_game_view`] fills.
+type GameViewUiNodes<'w, 's> = Query<
+    'w,
+    's,
+    (
+        Entity,
+        &'static ComputedNode,
+        &'static UiGlobalTransform,
+        &'static ComputedUiTargetCamera,
+        &'static InheritedVisibility,
+        &'static mut RelativeCursorPosition,
+    ),
+>;
+
+/// The cursor in [`GameViewImage`]'s physical pixels while the inspector is open.
+#[derive(SystemParam)]
+struct GameViewCursor<'w, 's> {
+    enabled: Res<'w, InspectorEnabled>,
+    rect: Res<'w, GameViewportRect>,
+    window: Single<'w, 's, &'static Window, With<PrimaryWindow>>,
+    touches: Res<'w, Touches>,
+}
+
+impl GameViewCursor<'_, '_> {
+    /// `None` while the inspector is closed; `Some(None)` while the cursor is off the game view.
+    fn get(&self) -> Option<Option<Vec2>> {
+        self.enabled.0.then(|| {
+            self.window
+                .cursor_position()
+                .or_else(|| self.touches.first_pressed_position())
+                .and_then(|cursor| self.rect.to_game(cursor))
+                .map(|cursor| cursor * self.window.scale_factor())
+        })
+    }
+}
+
+/// Fills [`RelativeCursorPosition`] for UI drawn by cameras moved onto
+/// [`GameViewImage`].
+///
+/// Bevy's `ui_focus_system` resolves the cursor only for cameras that render to
+/// a window, so it leaves these nodes without a cursor. This runs after it and
+/// applies the same hit test with the cursor mapped into the image.
+fn relative_cursor_on_game_view(
+    cursor: GameViewCursor,
+    cameras: Query<&Camera, With<RetargetedToGameView>>,
+    mut nodes: GameViewUiNodes,
+    clipping: Query<(&ComputedNode, &UiGlobalTransform, &Node)>,
+    child_of: Query<&ChildOf, Without<OverrideClip>>,
+) {
+    let Some(cursor) = cursor.get() else {
+        return;
+    };
+    for (entity, node, transform, target_camera, visibility, mut relative) in &mut nodes {
+        let Some(camera) = target_camera
+            .get()
+            .and_then(|camera| cameras.get(camera).ok())
+        else {
+            continue;
+        };
+        if !visibility.get() {
+            continue;
+        }
+        let viewport_min = camera
+            .physical_viewport_rect()
+            .map(|viewport| viewport.min.as_vec2())
+            .unwrap_or_default();
+        let point = cursor.map(|cursor| cursor - viewport_min);
+        relative.set_if_neq(RelativeCursorPosition {
+            cursor_over: point.is_some_and(|point| {
+                node.contains_point(*transform, point)
+                    && clip_check_recursive(point, entity, &clipping, &child_of)
+            }),
+            normalized: point.and_then(|point| node.normalize_point(*transform, point)),
+        });
+    }
+}
+
 /// Publishes where the Game tab shows the image, in window logical pixels.
 ///
 /// The image keeps the window's logical size, so the game-pixel scale is the
@@ -264,4 +351,105 @@ pub fn egui_pointer_over_area(
 
     // Cursor is outside viewport (over egui panels) → block game input
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use bevy::{
+        ecs::system::RunSystemOnce,
+        reflect::{DynamicStruct, FromReflect},
+    };
+
+    use super::*;
+
+    fn target_camera(camera: Entity) -> ComputedUiTargetCamera {
+        let mut fields = DynamicStruct::default();
+        fields.insert("camera", camera);
+        ComputedUiTargetCamera::from_reflect(&fields).expect("camera is the only field")
+    }
+
+    /// A window with the cursor at `cursor` and the game shown at half size.
+    fn game_view_app(cursor: Vec2) -> (App, GameViewportRect) {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<Touches>();
+        app.insert_resource(InspectorEnabled(true));
+        let mut window = Window::default();
+        window.set_cursor_position(Some(cursor));
+        let shown_width = window.width() / 2.0;
+        let rect = GameViewportRect {
+            min_x: 100.0,
+            min_y: 0.0,
+            max_x: 100.0 + shown_width,
+            max_y: window.height() / 2.0,
+            game_pixels_per_window_pixel: window.width() / shown_width,
+        };
+        app.insert_resource(rect);
+        app.world_mut().spawn((window, PrimaryWindow));
+        (app, rect)
+    }
+
+    fn spawn_node(app: &mut App, camera: Entity, center: Vec2) -> Entity {
+        app.world_mut()
+            .spawn((
+                ComputedNode {
+                    size: Vec2::splat(20.0),
+                    ..Default::default()
+                },
+                UiGlobalTransform::from_translation(center),
+                target_camera(camera),
+                InheritedVisibility::VISIBLE,
+                RelativeCursorPosition::default(),
+            ))
+            .id()
+    }
+
+    fn cursor_over(app: &App, node: Entity) -> bool {
+        app.world()
+            .get::<RelativeCursorPosition>(node)
+            .expect("node keeps its component")
+            .cursor_over
+    }
+
+    #[test]
+    fn game_view_ui_tracks_the_mapped_cursor() {
+        let cursor = Vec2::new(300.0, 100.0);
+        let (mut app, rect) = game_view_app(cursor);
+        let mapped = rect
+            .to_game(cursor)
+            .expect("cursor is inside the game view");
+        let camera = app
+            .world_mut()
+            .spawn((
+                Camera::default(),
+                RetargetedToGameView(RenderTarget::default()),
+            ))
+            .id();
+        let under_mapped = spawn_node(&mut app, camera, mapped);
+        let under_window = spawn_node(&mut app, camera, cursor);
+
+        app.world_mut()
+            .run_system_once(relative_cursor_on_game_view)
+            .expect("system params resolve");
+
+        assert!(cursor_over(&app, under_mapped));
+        assert!(!cursor_over(&app, under_window));
+    }
+
+    #[test]
+    fn window_ui_is_left_to_bevy() {
+        let cursor = Vec2::new(300.0, 100.0);
+        let (mut app, rect) = game_view_app(cursor);
+        let mapped = rect
+            .to_game(cursor)
+            .expect("cursor is inside the game view");
+        let camera = app.world_mut().spawn(Camera::default()).id();
+        let node = spawn_node(&mut app, camera, mapped);
+
+        app.world_mut()
+            .run_system_once(relative_cursor_on_game_view)
+            .expect("system params resolve");
+
+        assert!(!cursor_over(&app, node));
+    }
 }
