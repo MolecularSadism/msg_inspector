@@ -218,9 +218,26 @@ impl UiState {
             entities_tab_state: &mut self.entities_tab_state,
             custom_tabs: &mut self.custom_tabs,
         };
-        egui_dock::DockArea::new(&mut self.state)
-            .style(dock_style(ctx.style().as_ref()))
-            .show(ctx, &mut tab_viewer);
+        let style = ctx.global_style();
+        let mut root_ui = egui::Ui::new(
+            ctx.clone(),
+            "msg_inspector_root".into(),
+            egui::UiBuilder::new()
+                .layer_id(egui::LayerId::background())
+                .max_rect(ctx.content_rect()),
+        );
+        root_ui.set_clip_rect(ctx.content_rect());
+        egui::CentralPanel::default()
+            .frame(
+                egui::Frame::central_panel(&style)
+                    .inner_margin(0.)
+                    .fill(egui::Color32::TRANSPARENT),
+            )
+            .show_inside(&mut root_ui, |ui| {
+                egui_dock::DockArea::new(&mut self.state)
+                    .style(dock_style(style.as_ref()))
+                    .show_inside(ui, &mut tab_viewer);
+            });
     }
 }
 

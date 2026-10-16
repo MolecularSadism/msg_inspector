@@ -283,8 +283,8 @@ mod tests {
     fn run_frame(cards: &[Card], show_place: bool) -> Vec<(usize, CardAction)> {
         let ctx = egui::Context::default();
         let mut actions = Vec::new();
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
-            egui::CentralPanel::default().show(ctx, |ui| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            egui::CentralPanel::default().show_inside(ui, |ui| {
                 actions = draw_cards(ui, cards, show_place);
             });
         });
@@ -311,8 +311,8 @@ mod tests {
     fn salted_lists_share_a_panel() {
         let ctx = egui::Context::default();
         let cards = [card("Alpha Beast", "Creatures", 2)];
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
-            egui::CentralPanel::default().show(ctx, |ui| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            egui::CentralPanel::default().show_inside(ui, |ui| {
                 assert!(draw_cards_with_salt(ui, &cards, false, "primary").is_empty());
                 assert!(draw_cards_with_salt(ui, &cards, false, "secondary").is_empty());
             });

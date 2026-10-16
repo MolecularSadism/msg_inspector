@@ -37,8 +37,8 @@ fn full_bitmask_field_draw(c: &mut Criterion) {
     let mut bits = 0xAAAA_5555_u32;
     c.bench_function("bitmask_field_full_draw", |b| {
         b.iter(|| {
-            let _ = ctx.run(egui::RawInput::default(), |ctx| {
-                egui::CentralPanel::default().show(ctx, |ui| {
+            let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+                egui::CentralPanel::default().show_inside(ui, |ui| {
                     black_box(bitmask_field(ui, black_box(&mut bits), &NAMES));
                 });
             });
