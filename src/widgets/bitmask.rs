@@ -391,8 +391,8 @@ mod tests {
         let ctx = egui::Context::default();
         let mut bits = bits;
         let mut changed = false;
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
-            egui::CentralPanel::default().show(ctx, |ui| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            egui::CentralPanel::default().show_inside(ui, |ui| {
                 changed = bitmask_field(ui, &mut bits, names);
             });
         });
@@ -418,8 +418,8 @@ mod tests {
         let ctx = egui::Context::default();
         let mut bits = 1 << 31;
         let mut changed = false;
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
-            egui::CentralPanel::default().show(ctx, |ui| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            egui::CentralPanel::default().show_inside(ui, |ui| {
                 changed = bitmask_field_with(ui, &mut bits, |bit| match bit {
                     0 => Some("First"),
                     31 => Some("Last"),
@@ -456,8 +456,8 @@ mod tests {
         let ctx = egui::Context::default();
         let calls = Cell::new(0u32);
         let mut bits = 0b11;
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
-            egui::CentralPanel::default().show(ctx, |ui| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            egui::CentralPanel::default().show_inside(ui, |ui| {
                 bitmask_field_with(ui, &mut bits, |bit| {
                     calls.set(calls.get() + 1);
                     (bit < 2).then_some("named")
@@ -491,8 +491,8 @@ mod tests {
         let ctx = egui::Context::default();
         let mut bits = bits;
         let mut changed = false;
-        let _ = ctx.run(egui::RawInput::default(), |ctx| {
-            egui::CentralPanel::default().show(ctx, |ui| {
+        let _ = ctx.run_ui(egui::RawInput::default(), |ui| {
+            egui::CentralPanel::default().show_inside(ui, |ui| {
                 changed = bitmask_field_layers(ui, &mut bits, layers);
             });
         });

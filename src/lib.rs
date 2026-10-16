@@ -125,10 +125,7 @@ use std::sync::Mutex;
 
 use bevy::{
     prelude::*,
-    render::{
-        alpha::AlphaMode,
-        diagnostic::{MeshAllocatorDiagnosticPlugin, RenderDiagnosticsPlugin},
-    },
+    render::diagnostic::{MeshAllocatorDiagnosticPlugin, RenderDiagnosticsPlugin},
 };
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::DefaultInspectorConfigPlugin;

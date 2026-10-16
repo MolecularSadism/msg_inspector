@@ -23,7 +23,7 @@ use bevy::{
     },
     window::{PrimaryWindow, Window, WindowRef},
 };
-use bevy_egui::{EguiContextSettings, EguiTextureHandle, EguiUserTextures, PrimaryEguiContext};
+use bevy_egui::{EguiTextureHandle, EguiUserTextures, EguiZoomFactor, PrimaryEguiContext};
 
 use crate::state::{GameViewportRect, InspectorEnabled, UiState};
 
@@ -119,7 +119,7 @@ fn resize_game_view_image(
         .map(|image| image.size())
         .unwrap_or_default();
     if current != size
-        && let Some(image) = images.get_mut(&view.handle)
+        && let Some(mut image) = images.get_mut(&view.handle)
     {
         image.resize(Extent3d {
             width: size.x,
@@ -293,9 +293,9 @@ fn relative_cursor_on_game_view(
 /// window width over the shown width.
 pub(crate) fn export_game_viewport_rect(world: &mut World) {
     let egui_scale = world
-        .query_filtered::<&EguiContextSettings, With<PrimaryEguiContext>>()
+        .query_filtered::<&EguiZoomFactor, With<PrimaryEguiContext>>()
         .single(world)
-        .map_or(1.0, |settings| settings.scale_factor);
+        .map_or(1.0, |zoom| zoom.zoom_factor);
     let window_width = world
         .query_filtered::<&Window, With<PrimaryWindow>>()
         .single(world)
@@ -357,7 +357,7 @@ pub fn egui_pointer_over_area(
 mod tests {
     use bevy::{
         ecs::system::RunSystemOnce,
-        reflect::{DynamicStruct, FromReflect},
+        reflect::{FromReflect, structs::DynamicStruct},
     };
 
     use super::*;
