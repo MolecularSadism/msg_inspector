@@ -299,9 +299,6 @@ impl Plugin for InspectorPlugin {
             .add_systems(Update, handle_picking_clicks)
             .add_systems(Update, update_picked_entity_marker)
             .add_systems(Update, tabs::update_frame_time_history);
-
-        // Type registrations for reflection
-        app.register_type::<Option<Handle<Image>>>();
     }
 
     fn finish(&self, app: &mut App) {
