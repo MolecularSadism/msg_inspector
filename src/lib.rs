@@ -110,7 +110,8 @@
 //!
 //! ## Toggle Visibility
 //!
-//! Press the **Delete** key to toggle the inspector panel visibility.
+//! Press the **Delete** key to toggle the inspector panel visibility. The keys
+//! are configurable through [`InspectorKeys`].
 
 mod bitmask_registry;
 mod panel;
@@ -135,7 +136,7 @@ pub use panel::show_ui_system;
 pub use picking::{
     CrosshairConfig, PickingIgnore, handle_picking_clicks, update_picked_entity_marker,
 };
-pub use state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState};
+pub use state::{GameViewportRect, InspectorEnabled, InspectorKeys, InspectorSelection, UiState};
 pub use tabs::{
     ActiveCategory, BuiltinTab, DiagnosticsCounters, DockPosition, FrameTimeHistory, InspectorExt,
     InspectorSection, InspectorSectionRegistry, InspectorTab, InspectorTabRegistry,
@@ -156,7 +157,8 @@ pub use bevy_inspector_egui::egui;
 /// Provides a dockable panel UI with built-in tabs for entity inspection,
 /// hierarchy browsing, resource/asset exploration, and performance diagnostics.
 ///
-/// Toggle visibility with the Delete key.
+/// Toggle visibility with the Delete key, or the keys given to
+/// [`with_keys`](Self::with_keys).
 ///
 /// # Custom Counters
 ///
@@ -184,17 +186,27 @@ pub use bevy_inspector_egui::egui;
 /// ```
 pub struct InspectorPlugin {
     counters: Mutex<tabs::DiagnosticsCounters>,
+    keys: InspectorKeys,
 }
 
 impl Default for InspectorPlugin {
     fn default() -> Self {
         Self {
             counters: Mutex::new(tabs::DiagnosticsCounters::default()),
+            keys: InspectorKeys::default(),
         }
     }
 }
 
 impl InspectorPlugin {
+    /// Sets the keys the inspector starts with. The [`InspectorKeys`] resource
+    /// stays writable afterwards for runtime rebinding.
+    #[must_use]
+    pub fn with_keys(mut self, keys: InspectorKeys) -> Self {
+        self.keys = keys;
+        self
+    }
+
     /// Register a component counter in the diagnostics tab.
     ///
     /// The counter displays the number of entities that have component `C`.
@@ -269,6 +281,8 @@ impl Plugin for InspectorPlugin {
 
         // State management
         app.register_type::<InspectorEnabled>()
+            .register_type::<InspectorKeys>()
+            .insert_resource(self.keys.clone())
             .register_type::<picking::PickedEntityMarker>()
             .register_type::<picking::CrosshairConfig>()
             .register_type::<picking::PickingIgnore>()
