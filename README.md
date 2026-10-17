@@ -32,7 +32,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-msg_inspector = { git = "https://github.com/MolecularSadism/msg_inspector", tag = "v0.9.0" }
+msg_inspector = { git = "https://github.com/MolecularSadism/msg_inspector", tag = "v0.9.1" }
 bevy = "0.19"
 ```
 

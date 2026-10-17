@@ -301,8 +301,7 @@ impl Plugin for InspectorPlugin {
             .add_systems(Update, tabs::update_frame_time_history);
 
         // Type registrations for reflection
-        app.register_type::<Option<Handle<Image>>>()
-            .register_type::<AlphaMode>();
+        app.register_type::<Option<Handle<Image>>>();
     }
 
     fn finish(&self, app: &mut App) {
