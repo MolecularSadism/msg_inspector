@@ -214,11 +214,7 @@ commands.spawn((Sprite::default(), PickingIgnore));
 
 ## Toggle Visibility
 
-Press the **Delete** key to toggle the inspector panel visibility. Alt+Left click
-in the Game tab picks an entity; Shift or Ctrl extends the selection. All three
-are configurable through `InspectorKeys`, either at registration with
-`InspectorPlugin::default().with_keys(...)` or at runtime by writing the
-`InspectorKeys` resource.
+Press the **Delete** key to toggle the inspector panel visibility.
 
 ## Bevy Version Compatibility
 

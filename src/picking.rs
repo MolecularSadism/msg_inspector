@@ -1,9 +1,7 @@
 //! Entity picking systems for selecting entities in the viewport.
 //!
-//! Left click with an [`InspectorKeys::pick`] key held (Alt by default) inside
-//! the Game tab selects the topmost sprite under the cursor for the Inspector
-//! tab; an [`InspectorKeys::extend_selection`] key (Shift/Ctrl by default)
-//! extends the selection. The cursor
+//! Alt+Left click inside the Game tab selects the topmost sprite under the
+//! cursor for the Inspector tab (Shift/Ctrl extends the selection). The cursor
 //! is mapped from the Game tab into the game's own pixels through
 //! [`GameViewportRect`], then projected through the [`InspectorMainCamera`].
 
@@ -17,7 +15,7 @@ use bevy::{
 use bevy_egui::PrimaryEguiContext;
 
 use crate::{
-    state::{GameViewportRect, InspectorEnabled, InspectorKeys, InspectorSelection, UiState},
+    state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState},
     viewport::InspectorMainCamera,
 };
 
@@ -110,7 +108,6 @@ type PickableSprites<'w, 's> = Query<
 #[derive(SystemParam)]
 pub struct PickingScene<'w, 's> {
     keys: Res<'w, ButtonInput<KeyCode>>,
-    bindings: Res<'w, InspectorKeys>,
     mouse_buttons: Res<'w, ButtonInput<MouseButton>>,
     window: Single<'w, 's, &'static Window, With<PrimaryWindow>>,
     camera: PickingCamera<'w, 's>,
@@ -135,8 +132,8 @@ pub fn handle_picking_clicks(
     scene: PickingScene,
 ) {
     let keys = &scene.keys;
-    let pick_held = keys.any_pressed(scene.bindings.pick.iter().copied());
-    if !enabled.0 || !pick_held || !scene.mouse_buttons.just_pressed(MouseButton::Left) {
+    let alt_held = keys.pressed(KeyCode::AltLeft) || keys.pressed(KeyCode::AltRight);
+    if !enabled.0 || !alt_held || !scene.mouse_buttons.just_pressed(MouseButton::Left) {
         return;
     }
     let Some(cursor) = scene
@@ -177,7 +174,10 @@ pub fn handle_picking_clicks(
         return;
     };
 
-    let extend = keys.any_pressed(scene.bindings.extend_selection.iter().copied());
+    let extend = keys.pressed(KeyCode::ShiftLeft)
+        || keys.pressed(KeyCode::ShiftRight)
+        || keys.pressed(KeyCode::ControlLeft)
+        || keys.pressed(KeyCode::ControlRight);
     ui_state.selected_entities.select_maybe_add(entity, extend);
     ui_state.selection = InspectorSelection::Entities;
 }

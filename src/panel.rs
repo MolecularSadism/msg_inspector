@@ -4,7 +4,7 @@ use bevy::{camera::visibility::RenderLayers, prelude::*};
 use bevy_egui::EguiGlobalSettings;
 use bevy_egui::{EguiContext, PrimaryEguiContext};
 
-use crate::state::{InspectorEnabled, InspectorKeys, UiState};
+use crate::state::{InspectorEnabled, UiState};
 
 /// System that renders the inspector UI.
 pub fn show_ui_system(world: &mut World) {
@@ -29,13 +29,9 @@ pub fn show_ui_system(world: &mut World) {
     crate::viewport::export_game_viewport_rect(world);
 }
 
-/// System to toggle the inspector panel visibility on [`InspectorKeys::toggle`].
-pub fn toggle_inspector(
-    keys: Res<ButtonInput<KeyCode>>,
-    bindings: Res<InspectorKeys>,
-    mut enabled: ResMut<InspectorEnabled>,
-) {
-    if keys.any_just_pressed(bindings.toggle.iter().copied()) {
+/// System to toggle the inspector panel visibility.
+pub fn toggle_inspector(keys: Res<ButtonInput<KeyCode>>, mut enabled: ResMut<InspectorEnabled>) {
+    if keys.just_pressed(KeyCode::Delete) {
         enabled.0 = !enabled.0;
     }
 }
@@ -56,45 +52,4 @@ pub fn setup(mut commands: Commands, mut egui_global_settings: ResMut<EguiGlobal
             ..default()
         },
     ));
-}
-
-#[cfg(test)]
-mod tests {
-    use bevy::ecs::system::RunSystemOnce;
-
-    use super::*;
-
-    fn toggled_by(bindings: InspectorKeys, key: KeyCode) -> bool {
-        let mut world = World::new();
-        let mut keys = ButtonInput::<KeyCode>::default();
-        keys.press(key);
-        world.insert_resource(keys);
-        world.insert_resource(bindings);
-        world.insert_resource(InspectorEnabled(false));
-        world
-            .run_system_once(toggle_inspector)
-            .expect("toggle_inspector runs");
-        world.resource::<InspectorEnabled>().0
-    }
-
-    #[test]
-    fn toggle_follows_the_configured_keys() {
-        let bindings = InspectorKeys {
-            toggle: vec![KeyCode::F1],
-            ..default()
-        };
-        assert!(toggled_by(bindings.clone(), KeyCode::F1));
-        let replaced = InspectorKeys::default().toggle[0];
-        assert!(!toggled_by(bindings, replaced));
-    }
-
-    #[test]
-    fn empty_toggle_list_disables_the_toggle() {
-        let bindings = InspectorKeys {
-            toggle: Vec::new(),
-            ..default()
-        };
-        let default_key = InspectorKeys::default().toggle[0];
-        assert!(!toggled_by(bindings, default_key));
-    }
 }
