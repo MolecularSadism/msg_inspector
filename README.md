@@ -16,8 +16,9 @@ This crate provides a registration-based API where game modules can locally decl
 - **Relationship navigation**: The Inspector lists every relationship component on the selected
   entity (`ChildOf`, `Children`, and any custom relationship) with a select button per referenced
   entity, so inspection can follow the relationship graph
-- **Entity picking**: Alt+Left click inside the game viewport selects the topmost sprite under
-  the cursor (Shift/Ctrl extends the selection); mark sprites with `PickingIgnore` to exclude them
+- **Entity picking**: triggering `PickAtCursor` selects the topmost sprite under the cursor inside
+  the game viewport (`extend` adds to the selection); mark sprites with `PickingIgnore` to exclude
+  them
 - **Game view**: While the panel is open, every camera rendering to the primary window renders
   into a window-sized image instead, shown letterboxed in the Game tab. The game keeps its
   full-window resolution and layout, and picking pointers are mapped into the image, so UI hover,
@@ -199,9 +200,9 @@ at it.
 
 ## Entity Picking
 
-Hold **Alt** and left-click inside the game viewport to select the topmost sprite under the
-cursor; hold Shift or Ctrl as well to extend the current selection. Plain left clicks are left
-to the game. Picking maps the cursor from the Game tab into the game image and projects it through the
+Trigger `PickAtCursor` to select the topmost sprite under the cursor inside the game viewport;
+set `extend: true` to add it to the current selection. The inspector binds no input itself, so
+the host decides what fires a pick (for example Alt+Left click). Picking maps the cursor from the Game tab into the game image and projects it through the
 camera marked `InspectorMainCamera`, and tests sprites in their local frame — rotation,
 scale, anchors, sprite rects, and texture-atlas frames all count.
 
@@ -212,15 +213,32 @@ canvas sprite, for instance) can opt out:
 commands.spawn((Sprite::default(), PickingIgnore));
 ```
 
-## Toggle Visibility
+## Input
 
-Press the **Delete** key to toggle the inspector panel visibility.
+The inspector reads no keyboard or mouse input; the host app owns the bindings. Flip the
+`InspectorEnabled` resource to show or hide the panel, and trigger `PickAtCursor` to pick:
+
+```rust
+fn inspector_keys(
+    keys: Res<ButtonInput<KeyCode>>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut enabled: ResMut<InspectorEnabled>,
+    mut commands: Commands,
+) {
+    if keys.just_pressed(KeyCode::Delete) {
+        enabled.0 = !enabled.0;
+    }
+    if keys.pressed(KeyCode::AltLeft) && mouse.just_pressed(MouseButton::Left) {
+        commands.trigger(PickAtCursor { extend: keys.pressed(KeyCode::ShiftLeft) });
+    }
+}
+```
 
 ## Bevy Version Compatibility
 
 | `msg_inspector` | Bevy |
 |-----------------|------|
-| 0.9             | 0.19 |
+| 0.9-0.10        | 0.19 |
 | 0.4-0.8         | 0.18 |
 | 0.3             | 0.18 |
 | 0.2             | 0.17 |

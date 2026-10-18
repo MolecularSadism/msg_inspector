@@ -108,9 +108,34 @@
 //! app.add_systems(Update, my_click_system.run_if(not(egui_pointer_over_area)));
 //! ```
 //!
-//! ## Toggle Visibility
+//! ## Input
 //!
-//! Press the **Delete** key to toggle the inspector panel visibility.
+//! The inspector reads no keyboard or mouse input. The host app owns the
+//! bindings: it flips [`InspectorEnabled`] to show or hide the panel and
+//! triggers [`PickAtCursor`] to pick the entity under the cursor.
+//!
+//! ```
+//! use bevy::prelude::*;
+//! use msg_inspector::prelude::*;
+//!
+//! fn inspector_keys(
+//!     keys: Res<ButtonInput<KeyCode>>,
+//!     mouse: Res<ButtonInput<MouseButton>>,
+//!     mut enabled: ResMut<InspectorEnabled>,
+//!     mut commands: Commands,
+//! ) {
+//!     if keys.just_pressed(KeyCode::Delete) {
+//!         enabled.0 = !enabled.0;
+//!     }
+//!     if keys.pressed(KeyCode::AltLeft) && mouse.just_pressed(MouseButton::Left) {
+//!         let extend = keys.pressed(KeyCode::ShiftLeft);
+//!         commands.trigger(PickAtCursor { extend });
+//!     }
+//! }
+//!
+//! let mut app = App::new();
+//! app.add_systems(Update, inspector_keys);
+//! ```
 
 mod bitmask_registry;
 mod panel;
@@ -133,7 +158,7 @@ use bevy_inspector_egui::DefaultInspectorConfigPlugin;
 pub use bitmask_registry::{BitmaskRegistry, NotAnEnum};
 pub use panel::show_ui_system;
 pub use picking::{
-    CrosshairConfig, PickingIgnore, handle_picking_clicks, update_picked_entity_marker,
+    CrosshairConfig, PickAtCursor, PickingIgnore, pick_at_cursor, update_picked_entity_marker,
 };
 pub use state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState};
 pub use tabs::{
@@ -156,7 +181,8 @@ pub use bevy_inspector_egui::egui;
 /// Provides a dockable panel UI with built-in tabs for entity inspection,
 /// hierarchy browsing, resource/asset exploration, and performance diagnostics.
 ///
-/// Toggle visibility with the Delete key.
+/// Reads no input: the host shows and hides it through [`InspectorEnabled`] and
+/// picks through [`PickAtCursor`].
 ///
 /// # Custom Counters
 ///
@@ -295,8 +321,7 @@ impl Plugin for InspectorPlugin {
                 bevy_inspector_egui::bevy_egui::EguiPrimaryContextPass,
                 show_ui_system,
             )
-            .add_systems(Update, panel::toggle_inspector)
-            .add_systems(Update, handle_picking_clicks)
+            .add_observer(pick_at_cursor)
             .add_systems(Update, update_picked_entity_marker)
             .add_systems(Update, tabs::update_frame_time_history);
     }

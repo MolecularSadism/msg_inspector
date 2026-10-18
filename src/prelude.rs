@@ -10,6 +10,7 @@
 //! - [`InspectorExt`] - Extension trait for registering custom tabs
 //! - [`InspectorTab`] - Trait for implementing custom tabs
 //! - [`CrosshairConfig`] - Configuration for entity selection crosshair
+//! - [`PickAtCursor`] - Event the host triggers to pick the entity under the cursor
 //! - [`PickingIgnore`] - Marker excluding an entity from viewport picking
 //! - [`collect_relationships`] - Relationship components and their entities for an entity
 //! - [`BitmaskRegistry`] - Named bitmask layers registered from reflected enums
@@ -18,7 +19,7 @@
 
 pub use crate::{
     BitmaskRegistry, InspectorPlugin,
-    picking::{CrosshairConfig, PickingIgnore},
+    picking::{CrosshairConfig, PickAtCursor, PickingIgnore},
     state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState},
     tabs::{
         ActiveCategory, BuiltinTab, DiagnosticsCounters, DockPosition, InspectorExt,

@@ -48,7 +48,7 @@ fn dock_style(egui_style: &egui::Style) -> Style {
 
 /// Resource controlling whether the inspector panel is visible.
 ///
-/// Toggle with the Delete key.
+/// The inspector reads no input: the host app flips this from whatever binding it owns.
 #[derive(Resource, Reflect)]
 #[reflect(Resource)]
 pub struct InspectorEnabled(pub bool);

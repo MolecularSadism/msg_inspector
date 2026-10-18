@@ -29,13 +29,6 @@ pub fn show_ui_system(world: &mut World) {
     crate::viewport::export_game_viewport_rect(world);
 }
 
-/// System to toggle the inspector panel visibility.
-pub fn toggle_inspector(keys: Res<ButtonInput<KeyCode>>, mut enabled: ResMut<InspectorEnabled>) {
-    if keys.just_pressed(KeyCode::Delete) {
-        enabled.0 = !enabled.0;
-    }
-}
-
 /// Startup system to configure egui and spawn required entities.
 pub fn setup(mut commands: Commands, mut egui_global_settings: ResMut<EguiGlobalSettings>) {
     egui_global_settings.auto_create_primary_context = false;
