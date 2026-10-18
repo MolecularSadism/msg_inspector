@@ -1,10 +1,8 @@
 //! Entity picking systems for selecting entities in the viewport.
 //!
-//! Left click with an [`InspectorKeys::pick`] key held (Alt by default) inside
-//! the Game tab selects the topmost sprite under the cursor for the Inspector
-//! tab; an [`InspectorKeys::extend_selection`] key (Shift/Ctrl by default)
-//! extends the selection. The cursor
-//! is mapped from the Game tab into the game's own pixels through
+//! A [`PickAtCursor`] event, triggered by the host from its own binding,
+//! selects the topmost sprite under the cursor inside the Game tab for the
+//! Inspector tab. The cursor is mapped from the Game tab into the game's own pixels through
 //! [`GameViewportRect`], then projected through the [`InspectorMainCamera`].
 
 use bevy::{
@@ -17,7 +15,7 @@ use bevy::{
 use bevy_egui::PrimaryEguiContext;
 
 use crate::{
-    state::{GameViewportRect, InspectorEnabled, InspectorKeys, InspectorSelection, UiState},
+    state::{GameViewportRect, InspectorEnabled, InspectorSelection, UiState},
     viewport::InspectorMainCamera,
 };
 
@@ -106,12 +104,19 @@ type PickableSprites<'w, 's> = Query<
     Without<PickingIgnore>,
 >;
 
-/// Input state and world data a pick is resolved against.
+/// Requests an entity pick at the current cursor position.
+///
+/// The inspector reads no input; the host triggers this from its own binding
+/// with `commands.trigger(PickAtCursor { extend })`. `extend` adds the picked
+/// entity to the selection instead of replacing it.
+#[derive(Event, Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PickAtCursor {
+    pub extend: bool,
+}
+
+/// World data a pick is resolved against.
 #[derive(SystemParam)]
 pub struct PickingScene<'w, 's> {
-    keys: Res<'w, ButtonInput<KeyCode>>,
-    bindings: Res<'w, InspectorKeys>,
-    mouse_buttons: Res<'w, ButtonInput<MouseButton>>,
     window: Single<'w, 's, &'static Window, With<PrimaryWindow>>,
     camera: PickingCamera<'w, 's>,
     sprites: PickableSprites<'w, 's>,
@@ -119,24 +124,22 @@ pub struct PickingScene<'w, 's> {
     layouts: Res<'w, Assets<TextureAtlasLayout>>,
 }
 
-/// Selects the sprite under the cursor on Alt+Left click in the game view.
+/// Selects the sprite under the cursor on [`PickAtCursor`].
 ///
-/// The click is only handled while the inspector is enabled and the cursor is
+/// The pick is only handled while the inspector is enabled and the cursor is
 /// inside [`GameViewportRect`] — the Game tab's rect, which holds regardless of
-/// whether egui claims the pointer elsewhere in the dock. Holding Shift or
-/// Ctrl extends the current selection instead of replacing it.
+/// whether egui claims the pointer elsewhere in the dock.
 ///
 /// Candidates are visible sprites without [`PickingIgnore`]. Among hits, the
 /// highest world z wins (closest to the 2D camera).
-pub fn handle_picking_clicks(
+pub fn pick_at_cursor(
+    pick: On<PickAtCursor>,
     mut ui_state: ResMut<UiState>,
     enabled: Res<InspectorEnabled>,
     viewport_rect: Res<GameViewportRect>,
     scene: PickingScene,
 ) {
-    let keys = &scene.keys;
-    let pick_held = keys.any_pressed(scene.bindings.pick.iter().copied());
-    if !enabled.0 || !pick_held || !scene.mouse_buttons.just_pressed(MouseButton::Left) {
+    if !enabled.0 {
         return;
     }
     let Some(cursor) = scene
@@ -177,8 +180,9 @@ pub fn handle_picking_clicks(
         return;
     };
 
-    let extend = keys.any_pressed(scene.bindings.extend_selection.iter().copied());
-    ui_state.selected_entities.select_maybe_add(entity, extend);
+    ui_state
+        .selected_entities
+        .select_maybe_add(entity, pick.extend);
     ui_state.selection = InspectorSelection::Entities;
 }
 
