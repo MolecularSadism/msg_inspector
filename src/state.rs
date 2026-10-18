@@ -48,7 +48,7 @@ fn dock_style(egui_style: &egui::Style) -> Style {
 
 /// Resource controlling whether the inspector panel is visible.
 ///
-/// Toggle with the Delete key.
+/// Toggled by [`InspectorKeys::toggle`].
 #[derive(Resource, Reflect)]
 #[reflect(Resource)]
 pub struct InspectorEnabled(pub bool);
@@ -56,6 +56,49 @@ pub struct InspectorEnabled(pub bool);
 impl Default for InspectorEnabled {
     fn default() -> Self {
         Self(true)
+    }
+}
+
+/// The keys the inspector listens to.
+///
+/// Set at registration with [`InspectorPlugin::with_keys`](crate::InspectorPlugin::with_keys)
+/// and read every frame, so a host can rewrite it at runtime to mirror its own rebindable
+/// controls. Each field matches when any of its keys is pressed; an empty list disables that
+/// input.
+///
+/// ```
+/// use bevy::prelude::*;
+/// use msg_inspector::prelude::*;
+///
+/// let keys = InspectorKeys {
+///     toggle: vec![KeyCode::F1],
+///     ..default()
+/// };
+/// let _plugin = InspectorPlugin::default().with_keys(keys);
+/// ```
+#[derive(Resource, Reflect, Debug, Clone, PartialEq, Eq)]
+#[reflect(Resource)]
+pub struct InspectorKeys {
+    /// Pressing any of these toggles [`InspectorEnabled`].
+    pub toggle: Vec<KeyCode>,
+    /// Holding any of these turns a left click in the Game tab into an entity pick.
+    pub pick: Vec<KeyCode>,
+    /// Holding any of these while picking adds to the selection instead of replacing it.
+    pub extend_selection: Vec<KeyCode>,
+}
+
+impl Default for InspectorKeys {
+    fn default() -> Self {
+        Self {
+            toggle: vec![KeyCode::Delete],
+            pick: vec![KeyCode::AltLeft, KeyCode::AltRight],
+            extend_selection: vec![
+                KeyCode::ShiftLeft,
+                KeyCode::ShiftRight,
+                KeyCode::ControlLeft,
+                KeyCode::ControlRight,
+            ],
+        }
     }
 }
 
